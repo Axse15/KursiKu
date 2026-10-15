@@ -111,15 +111,6 @@ export default function Ticket() {
           Riwayat pesanan
         </Link>
       </div>
-
-      <div className="mt-6 flex gap-3">
-        <Link to="/" className={btnGhost}>
-          Pesan lagi
-        </Link>
-        <Link to="/riwayat" className={btnGhost}>
-          Riwayat pesanan
-        </Link>
-      </div>
     </section>
   );
 }

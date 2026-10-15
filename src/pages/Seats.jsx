@@ -163,6 +163,18 @@ export default function Seats() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showtimeId]);
 
+  if (error) return <ErrorBox message={error} onRetry={reload} />;
+  if (loading && !data) return <Skeleton className="h-96" />;
+  if (!data) {
+    return (
+      <Empty title="Jadwal tidak ditemukan">
+        <Link to="/" className="underline">
+          Kembali ke beranda
+        </Link>
+      </Empty>
+    );
+  }
+
   const { showtime, taken } = data;
   const total = selected.reduce((sum, c) => sum + seatPrice(c, showtime), 0);
 
