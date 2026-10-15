@@ -8,6 +8,7 @@ import Checkout from "./pages/Checkout";
 import Ticket from "./pages/Ticket";
 import History from "./pages/History";
 import { useState } from "react";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // Atribusi wajib dari TMDB. Taruh logo resmi TMDB di public/tmdb-logo.svg (kalau belum ada, logo disembunyikan).
 function TmdbCredit() {
@@ -79,6 +80,7 @@ function NotFound() {
 }
 
 export default function App() {
+  const location = useLocation();
   if (!isConfigured) {
     return (
       <Layout>
@@ -101,15 +103,17 @@ export default function App() {
 
   return (
     <Layout>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/film/:id" element={<Movie />} />
-        <Route path="/pilih-kursi/:showtimeId" element={<Seats />} />
-        <Route path="/checkout/:showtimeId" element={<Checkout />} />
-        <Route path="/tiket/:code" element={<Ticket />} />
-        <Route path="/riwayat" element={<History />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <ErrorBoundary key={location.pathname}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/film/:id" element={<Movie />} />
+          <Route path="/pilih-kursi/:showtimeId" element={<Seats />} />
+          <Route path="/checkout/:showtimeId" element={<Checkout />} />
+          <Route path="/tiket/:code" element={<Ticket />} />
+          <Route path="/riwayat" element={<History />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </ErrorBoundary>
     </Layout>
   );
 }

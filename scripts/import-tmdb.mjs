@@ -9,7 +9,7 @@ import fs from "node:fs";
 
 const API = "https://api.themoviedb.org/3";
 const IMG = "https://image.tmdb.org/t/p";
-const COUNT = 10;
+const COUNT = 100;
 
 // warna cadangan kalau gambar poster gagal dimuat
 const PALETTE = [

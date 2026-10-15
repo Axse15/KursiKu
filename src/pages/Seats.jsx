@@ -133,21 +133,32 @@ export default function Seats() {
   // Realtime: setiap ada pesanan baru di jadwal ini, muat ulang denah kursi.
   // Database tetap penentu akhir lewat constraint UNIQUE, jadi ini murni soal tampilan.
   useEffect(() => {
-    const channel = supabase
-      .channel(`kursi-${showtimeId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "bookings",
-          filter: `showtime_id=eq.${showtimeId}`,
-        },
-        () => reload(),
-      )
-      .subscribe();
+    let channel = null;
+    try {
+      channel = supabase
+        .channel(
+          `kursi-${showtimeId}-${Math.random().toString(36).slice(2, 8)}`,
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "bookings",
+            filter: `showtime_id=eq.${showtimeId}`,
+          },
+          () => reload(),
+        )
+        .subscribe();
+    } catch (e) {
+      console.warn("Realtime tidak aktif:", e);
+    }
     return () => {
-      supabase.removeChannel(channel);
+      try {
+        if (channel) supabase.removeChannel(channel);
+      } catch {
+        /* abaikan */
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showtimeId]);
