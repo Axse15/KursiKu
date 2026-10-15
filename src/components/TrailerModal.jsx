@@ -71,7 +71,7 @@ export default function TrailerModal({ videoKey, title, onClose }) {
             ref={closeRef}
             type="button"
             onClick={onClose}
-            className="min-h-11 shrink-0 rounded-xl border border-zinc-600 px-4 text-sm text-white hover:border-amber-400"
+            className="min-h-11 shrink-0 rounded-xl border border-line-hover px-4 text-sm text-white hover:border-accent"
           >
             Tutup ✕
           </button>
@@ -88,14 +88,14 @@ export default function TrailerModal({ videoKey, title, onClose }) {
           />
         </div>
 
-        <p className="mt-2 text-xs text-zinc-400">
+        <p className="mt-2 text-xs text-muted">
           Video tidak mau diputar? Pemilik video kadang melarang pemutaran di
           situs lain.{" "}
           <a
             href={`https://www.youtube.com/watch?v=${id}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-amber-300 underline"
+            className="text-accent-ink underline"
           >
             Buka di YouTube
           </a>

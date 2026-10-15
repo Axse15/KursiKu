@@ -2,16 +2,16 @@ import { useState } from "react";
 import { scoreLabel } from "../lib/config";
 
 export const btnPrimary =
-  "inline-flex min-h-11 items-center justify-center rounded-xl bg-amber-400 px-5 font-semibold text-zinc-950 hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-40";
+  "inline-flex min-h-11 items-center justify-center rounded-xl bg-accent px-5 font-semibold text-on-accent hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40";
 
 export const btnGhost =
-  "inline-flex min-h-11 items-center justify-center rounded-xl border border-zinc-700 px-5 font-medium text-zinc-100 hover:border-amber-400";
+  "inline-flex min-h-11 items-center justify-center rounded-xl border border-line-strong px-5 font-medium text-ink hover:border-accent";
 
 export function Skeleton({ className = "" }) {
   return (
     <div
       aria-hidden="true"
-      className={`animate-pulse rounded-xl bg-zinc-800 ${className}`}
+      className={`animate-pulse rounded-xl bg-raised ${className}`}
     />
   );
 }
@@ -20,14 +20,14 @@ export function ErrorBox({ message, onRetry }) {
   return (
     <div
       role="alert"
-      className="rounded-xl border border-red-500/40 bg-red-950/40 p-4 text-sm"
+      className="rounded-xl border border-danger-line bg-danger-bg p-4 text-sm"
     >
-      <p className="font-medium text-red-300">Terjadi kesalahan</p>
-      <p className="mt-1 text-zinc-300">{message}</p>
+      <p className="font-medium text-danger">Terjadi kesalahan</p>
+      <p className="mt-1 text-ink-2">{message}</p>
       {onRetry && (
         <button
           onClick={onRetry}
-          className="mt-3 min-h-10 rounded-lg bg-zinc-100 px-4 font-medium text-zinc-900"
+          className="mt-3 min-h-10 rounded-lg bg-ink px-4 font-medium text-page"
         >
           Coba lagi
         </button>
@@ -38,9 +38,9 @@ export function ErrorBox({ message, onRetry }) {
 
 export function Empty({ title, children }) {
   return (
-    <div className="rounded-xl border border-dashed border-zinc-700 p-8 text-center">
+    <div className="rounded-xl border border-dashed border-line-strong p-8 text-center">
       <p className="font-display text-lg font-semibold">{title}</p>
-      <div className="mt-2 text-sm text-zinc-400">{children}</div>
+      <div className="mt-2 text-sm text-muted">{children}</div>
     </div>
   );
 }
@@ -88,7 +88,12 @@ export function Backdrop({ src }) {
 }
 
 // Poster: pakai gambar dari TMDB kalau ada, kalau tidak (atau gagal dimuat) pakai poster gradasi buatan sendiri.
-export function Poster({ movie, className = "", showMeta = true }) {
+export function Poster({
+  movie,
+  className = "",
+  showMeta = true,
+  compact = false,
+}) {
   const [broken, setBroken] = useState(false);
   const photo = movie.poster_url && !broken;
 
@@ -115,7 +120,7 @@ export function Poster({ movie, className = "", showMeta = true }) {
           <Texture />
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute -right-4 -top-8 select-none font-display text-[9rem] font-bold leading-none text-white/10"
+            className={`pointer-events-none absolute select-none font-display font-bold leading-none text-white/10 ${compact ? "-right-1 -top-1 text-4xl" : "-right-4 -top-8 text-[9rem]"}`}
           >
             {movie.title[0]}
           </span>
@@ -123,11 +128,13 @@ export function Poster({ movie, className = "", showMeta = true }) {
             aria-hidden="true"
             className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 to-transparent"
           />
-          <div className="absolute inset-x-0 bottom-0 p-3">
-            <span className="font-display text-lg font-bold leading-tight text-white">
-              {movie.title}
-            </span>
-          </div>
+          {!compact && (
+            <div className="absolute inset-x-0 bottom-0 p-3">
+              <span className="font-display text-lg font-bold leading-tight text-white">
+                {movie.title}
+              </span>
+            </div>
+          )}
         </>
       )}
 

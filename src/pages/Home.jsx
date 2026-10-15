@@ -3,71 +3,27 @@ import { Link } from "react-router-dom";
 import { supabase, unwrap } from "../lib/supabase";
 import { useAsync } from "../lib/useAsync";
 import { useCinema } from "../lib/cinema";
-import { fmtWhen } from "../lib/config";
+import { fmtDayChip, fmtWhen, rupiah } from "../lib/config";
+import { dealPercent, dealPrice } from "../lib/deals";
+import { ratingOf, topPopular, topRated, topRecommended } from "../lib/rank";
 import CinemaPicker from "../components/CinemaPicker";
-import {
-  Backdrop,
-  Empty,
-  ErrorBox,
-  Poster,
-  Skeleton,
-  Texture,
-  btnPrimary,
-} from "../components/ui";
+import Banner from "../components/Banner";
+import PromoStrip from "../components/PromoStrip";
+import { Empty, ErrorBox, Poster, Skeleton } from "../components/ui";
 
-// "Sedang tayang" = film yang punya jadwal dalam 3 hari ke depan.
-// Dibatasi 3 hari supaya jumlah barisnya kecil (batas bawaan Supabase 1000 baris per permintaan).
 const WINDOW_MS = 3 * 86400000;
 
-function Hero({ movie, when }) {
-  return (
-    <section
-      className="relative overflow-hidden rounded-3xl p-6 sm:p-10"
-      style={{
-        background: `linear-gradient(120deg, ${movie.poster_from}, ${movie.poster_to})`,
-      }}
-    >
-      <Texture />
-      <Backdrop src={movie.backdrop_url} />
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-transparent"
-      />
-      <div className="relative flex items-center justify-between gap-8">
-        <div className="max-w-xl">
-          <p className="text-xs font-medium uppercase tracking-[0.25em] text-amber-300">
-            Pilihan hari ini
-          </p>
-          <h2 className="mt-3 font-display text-4xl font-bold leading-tight text-white sm:text-5xl">
-            {movie.title}
-          </h2>
-          <p className="mt-2 text-sm text-white/80">
-            {movie.genre} · {movie.duration_min} menit
-          </p>
-          <p className="mt-4 line-clamp-3 text-white/85">{movie.synopsis}</p>
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <Link to={`/film/${movie.id}`} className={btnPrimary}>
-              Lihat jadwal
-            </Link>
-            {when && (
-              <span className="text-sm text-white/80">
-                Tayang berikutnya: {when}
-              </span>
-            )}
-          </div>
-        </div>
-        <Poster
-          movie={movie}
-          showMeta={false}
-          className="hidden aspect-[2/3] w-44 shrink-0 rotate-3 shadow-2xl shadow-black/50 md:block"
-        />
-      </div>
-    </section>
-  );
-}
+const SORTS = {
+  jadwal: { label: "Jadwal terdekat" },
+  populer: { label: "Paling populer" },
+  rating: { label: "Rating tertinggi" },
+  murah: { label: "Harga termurah" },
+  diskon: { label: "Diskon terbesar" },
+};
 
 export default function Home() {
   const [genre, setGenre] = useState("Semua");
+  const [sort, setSort] = useState("jadwal");
   const [query, setQuery] = useState("");
   const {
     cinemas,
@@ -86,7 +42,7 @@ export default function Home() {
     const now = Date.now();
     let q = supabase
       .from("showtimes")
-      .select("movie_id, cinema_id, starts_at")
+      .select("movie_id, cinema_id, starts_at, price_regular")
       .gte("starts_at", new Date(now).toISOString())
       .lt("starts_at", new Date(now + WINDOW_MS).toISOString())
       .order("starts_at")
@@ -94,14 +50,21 @@ export default function Home() {
     if (cinemaId) q = q.eq("cinema_id", cinemaId);
     const shows = unwrap(await q);
 
-    // jadwal terdekat per film + berapa bioskop yang menayangkannya
     const next = {};
     const where = {};
+    const fromPrice = {};
+    const bestDeal = {};
     for (const s of shows) {
       if (!next[s.movie_id]) next[s.movie_id] = s.starts_at;
       (where[s.movie_id] ||= new Set()).add(s.cinema_id);
+      const pct = dealPercent(s.movie_id, s.starts_at);
+      const price = dealPrice(s.price_regular, pct);
+      if (!(s.movie_id in fromPrice) || price < fromPrice[s.movie_id])
+        fromPrice[s.movie_id] = price;
+      if (pct > (bestDeal[s.movie_id]?.pct || 0))
+        bestDeal[s.movie_id] = { pct, at: s.starts_at };
     }
-    return { movies, next, where };
+    return { movies, next, where, fromPrice, bestDeal };
   }, [cinemaId]);
 
   if (cinemaError) {
@@ -127,7 +90,7 @@ export default function Home() {
     );
   }
 
-  const { movies, next, where } = data;
+  const { movies, next, where, fromPrice, bestDeal } = data;
   if (movies.length === 0) {
     return (
       <Empty title="Belum ada film">
@@ -137,30 +100,68 @@ export default function Home() {
   }
 
   const nowShowing = movies.filter((m) => next[m.id]);
-  const featured = [...nowShowing].sort(
-    (a, b) => new Date(next[a.id]) - new Date(next[b.id]),
-  )[0];
 
-  const genres = ["Semua", ...new Set(nowShowing.map((m) => m.genre))];
-  const activeGenre = genres.includes(genre) ? genre : "Semua"; // genre bisa hilang saat ganti bioskop
+  const bannerTabs = [
+    {
+      key: "rec",
+      label: "Rekomendasi",
+      list: topRecommended(nowShowing),
+      hint: "Gabungan rating dan popularitas film yang sedang tayang.",
+    },
+    {
+      key: "pop",
+      label: "Terpopuler",
+      list: topPopular(nowShowing),
+      hint: "Berdasarkan skor popularitas TMDB, bukan jumlah tiket KursiKu (ini simulasi).",
+    },
+    {
+      key: "rated",
+      label: "Rating bagus",
+      list: topRated(nowShowing),
+      hint: "Nilai IMDb kalau ada, kalau tidak nilai TMDB. Film dengan suara terlalu sedikit tidak dihitung.",
+    },
+  ].filter((t) => t.list.length > 0);
+
+  const counts = {};
+  for (const m of nowShowing) counts[m.genre] = (counts[m.genre] || 0) + 1;
+  const genres = Object.keys(counts).sort();
+  const activeGenre = genres.includes(genre) ? genre : "Semua";
   const q = query.trim().toLowerCase();
-  const shown = nowShowing.filter(
-    (m) =>
-      (activeGenre === "Semua" || m.genre === activeGenre) &&
-      (!q || m.title.toLowerCase().includes(q)),
-  );
+  const sorters = {
+    jadwal: (a, b) => new Date(next[a.id]) - new Date(next[b.id]),
+    populer: (a, b) =>
+      (Number(b.popularity) || 0) - (Number(a.popularity) || 0),
+    rating: (a, b) => (ratingOf(b) ?? 0) - (ratingOf(a) ?? 0),
+    murah: (a, b) => fromPrice[a.id] - fromPrice[b.id],
+    diskon: (a, b) =>
+      (bestDeal[b.id]?.pct || 0) - (bestDeal[a.id]?.pct || 0) ||
+      new Date(next[a.id]) - new Date(next[b.id]),
+  };
+  const shown = nowShowing
+    .filter(
+      (m) =>
+        (activeGenre === "Semua" || m.genre === activeGenre) &&
+        (!q || m.title.toLowerCase().includes(q)),
+    )
+    .sort(sorters[sort] || sorters.jadwal);
 
   const place = selected
     ? `${selected.name}, ${selected.city}`
     : `${cinemas.length} bioskop`;
+  const field =
+    "mt-1 min-h-11 w-full rounded-xl border border-line-strong bg-panel px-3";
 
   return (
     <div className="space-y-10">
-      {featured && <Hero movie={featured} when={fmtWhen(next[featured.id])} />}
+      {bannerTabs.length > 0 && (
+        <Banner key={cinemaId ?? "all"} tabs={bannerTabs} next={next} />
+      )}
+
+      <PromoStrip />
 
       <section>
         <h1 className="font-display text-3xl font-bold">Sedang tayang</h1>
-        <p className="mt-1 text-zinc-400">
+        <p className="mt-1 text-muted">
           {nowShowing.length} film · {place}
         </p>
 
@@ -188,9 +189,12 @@ export default function Home() {
           </div>
         ) : (
           <>
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <label htmlFor="cari" className="sr-only">
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr]">
+              <div className="sm:col-span-2 lg:col-span-1">
+                <label
+                  htmlFor="cari"
+                  className="text-sm font-medium text-ink-2"
+                >
                   Cari film
                 </label>
                 <input
@@ -199,36 +203,58 @@ export default function Home() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Cari judul film…"
-                  className="min-h-11 w-full min-w-64 rounded-xl border border-zinc-700 bg-zinc-900 px-4 placeholder:text-zinc-500"
+                  className={`${field} placeholder:text-faint`}
                 />
               </div>
-              <div
-                role="group"
-                aria-label="Filter genre"
-                className="flex flex-wrap gap-2"
-              >
-                {genres.map((g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    aria-pressed={activeGenre === g}
-                    onClick={() => setGenre(g)}
-                    className={`min-h-10 rounded-full border px-4 text-sm ${
-                      activeGenre === g
-                        ? "border-amber-400 bg-amber-400 font-semibold text-zinc-950"
-                        : "border-zinc-700 text-zinc-300 hover:border-amber-400"
-                    }`}
-                  >
-                    {g}
-                  </button>
-                ))}
+              <div>
+                <label
+                  htmlFor="kategori"
+                  className="text-sm font-medium text-ink-2"
+                >
+                  Kategori
+                </label>
+                <select
+                  id="kategori"
+                  value={activeGenre}
+                  onChange={(e) => setGenre(e.target.value)}
+                  className={field}
+                >
+                  <option value="Semua">
+                    Semua kategori ({nowShowing.length})
+                  </option>
+                  {genres.map((g) => (
+                    <option key={g} value={g}>
+                      {g} ({counts[g]})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="urut"
+                  className="text-sm font-medium text-ink-2"
+                >
+                  Urutkan
+                </label>
+                <select
+                  id="urut"
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value)}
+                  className={field}
+                >
+                  {Object.entries(SORTS).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
             {shown.length === 0 ? (
               <div className="mt-6">
                 <Empty title="Tidak ada film yang cocok">
-                  Coba kata kunci atau genre lain.
+                  Coba kata kunci atau kategori lain.
                 </Empty>
               </div>
             ) : (
@@ -236,20 +262,36 @@ export default function Home() {
                 {shown.map((m) => (
                   <li key={m.id}>
                     <Link to={`/film/${m.id}`} className="group block">
-                      <Poster
-                        movie={m}
-                        className="aspect-[2/3] shadow-lg shadow-black/40 transition duration-300 group-hover:-translate-y-1 group-hover:shadow-amber-400/10"
-                      />
-                      <p className="mt-3 line-clamp-1 text-sm font-medium text-zinc-200">
+                      <div className="relative transition duration-300 group-hover:-translate-y-1">
+                        <Poster
+                          movie={m}
+                          className="aspect-[2/3] shadow-lg shadow-black/40 transition duration-300 group-hover:shadow-accent/10"
+                        />
+                        {bestDeal[m.id] && (
+                          <span className="absolute bottom-2 right-2 rounded-md bg-accent px-2 py-1 text-xs font-bold text-on-accent shadow">
+                            −{bestDeal[m.id].pct}%
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-3 line-clamp-1 text-sm font-medium text-ink-2">
                         {m.title}
                       </p>
-                      <p className="text-sm text-zinc-400">
+                      <p className="text-sm text-muted">
                         {m.duration_min} menit
                         {!selected && ` · ${where[m.id].size} bioskop`}
                       </p>
-                      <p className="text-sm font-medium text-amber-300">
+                      <p className="text-sm font-medium text-accent-ink">
                         {fmtWhen(next[m.id])}
                       </p>
+                      <p className="text-sm text-muted">
+                        Mulai {rupiah(fromPrice[m.id])}
+                      </p>
+                      {bestDeal[m.id] && (
+                        <p className="text-sm font-medium text-accent-ink">
+                          Diskon {bestDeal[m.id].pct}% ·{" "}
+                          {fmtDayChip(bestDeal[m.id].at).top}
+                        </p>
+                      )}
                     </Link>
                   </li>
                 ))}

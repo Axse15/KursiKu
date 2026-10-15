@@ -1,10 +1,13 @@
-// Mengambil film "sedang tayang" dari TMDB, lalu menulis import.sql
+// Mengambil film yang sedang tayang dari TMDB (campuran film Indonesia + film luar negeri), lalu menulis import.sql
 // untuk ditempel di Supabase > SQL Editor.
 //
 // Pemakaian (Node 18+):   node scripts/import-tmdb.mjs
-// Butuh file .env.import berisi satu baris:   TMDB_TOKEN=<API Read Access Token>
+// Butuh file .env.import berisi:
+//   TMDB_TOKEN=<API Read Access Token>
+//   OMDB_KEY=<kunci OMDb>        (OPSIONAL: kalau ada, rating IMDb ikut diambil sebagai sumber data kedua)
 //
-// Token TMDB hanya dipakai di komputermu saat skrip ini jalan. Tidak masuk ke aplikasi web.
+// Token/kunci hanya dipakai di komputermu saat skrip ini jalan. Tidak masuk ke aplikasi web.
+// Jalankan supabase-v4.sql di Supabase SEBELUM menempel import.sql (kolom baru dibuat di situ).
 import fs from "node:fs";
 
 const API = "https://api.themoviedb.org/3";
@@ -22,18 +25,18 @@ const PALETTE = [
   ["#134e4a", "#1c1917"],
 ];
 
-export function readToken() {
-  if (process.env.TMDB_TOKEN) return process.env.TMDB_TOKEN.trim();
+export function readEnv(name) {
+  if (process.env[name]) return process.env[name].trim();
   try {
     const line = fs
       .readFileSync(".env.import", "utf8")
-      .replace(/^\uFEFF/, "") // sebagian editor Windows menambah BOM di awal file
+      .replace(/^﻿/, "") // sebagian editor Windows menambah BOM di awal file
       .split(/\r?\n/)
       .map((l) => l.trim())
-      .find((l) => l.startsWith("TMDB_TOKEN="));
+      .find((l) => l.startsWith(`${name}=`));
     return line
       ? line
-          .slice("TMDB_TOKEN=".length)
+          .slice(name.length + 1)
           .trim()
           .replace(/^["']|["']$/g, "")
       : "";
@@ -41,6 +44,7 @@ export function readToken() {
     return "";
   }
 }
+export const readToken = () => readEnv("TMDB_TOKEN");
 
 async function get(path, params, token) {
   const res = await fetch(`${API}${path}?${new URLSearchParams(params)}`, {
@@ -51,6 +55,43 @@ async function get(path, params, token) {
       `TMDB ${res.status} untuk ${path}: ${(await res.text()).slice(0, 200)}`,
     );
   return res.json();
+}
+
+// Sumber data kedua (opsional): OMDb, untuk rating IMDb dan label usia. Gagal/tanpa kunci -> kembali kosong, impor tetap jalan.
+const OMDB = "https://www.omdbapi.com/";
+const orNull = (v) =>
+  v == null || v === "" || /^(n\/a|not rated|unrated)$/i.test(String(v).trim())
+    ? null
+    : String(v).trim();
+
+export function parseOmdb(json) {
+  if (!json || json.Response !== "True") return null;
+  const rating = Number.parseFloat(orNull(json.imdbRating));
+  const votes = Number.parseInt(
+    String(orNull(json.imdbVotes) ?? "").replaceAll(",", ""),
+    10,
+  );
+  return {
+    imdb_rating: Number.isFinite(rating) ? rating : null,
+    imdb_votes: Number.isFinite(votes) ? votes : null,
+    age_rated: orNull(json.Rated),
+  };
+}
+
+export async function omdbLookup(imdbId, key, fetchImpl = fetch) {
+  const res = await fetchImpl(
+    `${OMDB}?${new URLSearchParams({ i: imdbId, apikey: key })}`,
+  );
+  const json = await res.json().catch(() => null);
+  if (
+    json?.Response === "False" &&
+    /limit|invalid api key|no api key/i.test(json.Error || "")
+  ) {
+    const e = new Error(json.Error);
+    e.fatal = true; // kunci salah / kuota habis: berhenti memanggil OMDb untuk film berikutnya
+    throw e;
+  }
+  return parseOmdb(json);
 }
 
 const usable = (m) => m.poster_path && !m.adult;
@@ -64,8 +105,9 @@ async function indonesianFilms(token) {
     with_original_language: "id",
     sort_by: "popularity.desc",
     include_adult: "false",
+    "with_runtime.gte": 60,
     page: 1,
-  };
+  }; // runtime >= 60 menit: film pendek tidak ikut
   let list =
     (
       await get(
@@ -101,7 +143,12 @@ async function indonesianFilms(token) {
 }
 
 // Campuran: sekitar idCount film Indonesia + sisanya film luar negeri yang sedang tayang di Indonesia.
-export async function fetchMovies(token, count = COUNT, idCount = ID_COUNT) {
+export async function fetchMovies(
+  token,
+  count = COUNT,
+  idCount = ID_COUNT,
+  { omdbKey = "", fetchImpl = fetch, log = console.warn } = {},
+) {
   const local = (await indonesianFilms(token)).slice(0, idCount);
 
   let intl =
@@ -134,6 +181,7 @@ export async function fetchMovies(token, count = COUNT, idCount = ID_COUNT) {
   ];
 
   const items = [];
+  let omdbOn = Boolean(omdbKey);
   for (const m of list) {
     const d = await get(
       `/movie/${m.id}`,
@@ -171,12 +219,37 @@ export async function fetchMovies(token, count = COUNT, idCount = ID_COUNT) {
         : null,
       trailer_key: trailer?.key || null,
       release_date: d.release_date || null,
+      popularity:
+        d.popularity != null ? Math.round(d.popularity * 1000) / 1000 : null,
+      vote_count: Number.isInteger(d.vote_count) ? d.vote_count : null,
+      imdb_id: /^tt\d+$/.test(d.imdb_id || "") ? d.imdb_id : null,
+      imdb_rating: null,
+      imdb_votes: null,
+      age_rated: null,
     });
+    const item = items[items.length - 1];
+    if (omdbOn && item.imdb_id) {
+      try {
+        Object.assign(
+          item,
+          (await omdbLookup(item.imdb_id, omdbKey, fetchImpl)) || {},
+        );
+      } catch (e) {
+        if (e.fatal) {
+          omdbOn = false;
+          log(
+            `OMDb dihentikan: ${e.message}. Film sisanya dilewati (tanpa rating IMDb).`,
+          );
+        } else log(`OMDb gagal untuk ${item.title}: ${e.message}`);
+      }
+    }
   }
   return items;
 }
 
 const esc = (s) => `'${String(s).replaceAll("'", "''")}'`;
+const num = (v) =>
+  v == null || Number.isNaN(Number(v)) ? "null" : String(Number(v));
 const val = (v) => (v == null || v === "" ? "null" : esc(v));
 
 // Membuang film lama yang tidak ikut daftar impor ini. Jadwalnya ikut terhapus otomatis (ON DELETE CASCADE).
@@ -193,16 +266,19 @@ delete from movies m
 
 `;
 }
-export function buildSql(items) {
+
+// clean = true: film lama yang tidak ada di daftar ini ikut dibuang (hanya yang belum punya pesanan sama sekali).
+export function buildSql(items, { clean = false } = {}) {
   const rows = items.map((m) => {
     const [from, to] = PALETTE[m.tmdb_id % PALETTE.length];
-    return `(${m.tmdb_id}, ${esc(m.title)}, ${esc(m.genre)}, ${m.duration_min}, 'NR', ${esc(m.synopsis)}, '${from}', '${to}', ${val(m.poster_url)}, ${val(m.backdrop_url)}, ${m.vote_average == null ? "null" : m.vote_average}, ${val(m.trailer_key)}, ${val(m.release_date)})`;
+    return `(${m.tmdb_id}, ${esc(m.title)}, ${esc(m.genre)}, ${m.duration_min}, 'NR', ${esc(m.synopsis)}, '${from}', '${to}', ${val(m.poster_url)}, ${val(m.backdrop_url)}, ${m.vote_average == null ? "null" : m.vote_average}, ${val(m.trailer_key)}, ${val(m.release_date)}, ${num(m.popularity)}, ${num(m.vote_count)}, ${val(m.imdb_id)}, ${num(m.imdb_rating)}, ${num(m.imdb_votes)}, ${val(m.age_rated)})`;
   });
 
   return `-- Dibuat otomatis dari TMDB oleh scripts/import-tmdb.mjs
 -- Aman dijalankan berulang: film yang sama diperbarui, bukan digandakan.
 insert into movies
-  (tmdb_id, title, genre, duration_min, rating, synopsis, poster_from, poster_to, poster_url, backdrop_url, vote_average, trailer_key, release_date)
+  (tmdb_id, title, genre, duration_min, rating, synopsis, poster_from, poster_to, poster_url, backdrop_url, vote_average, trailer_key, release_date,
+   popularity, vote_count, imdb_id, imdb_rating, imdb_votes, age_rated)
 values
 ${rows.join(",\n")}
 on conflict (tmdb_id) do update set
@@ -214,20 +290,18 @@ on conflict (tmdb_id) do update set
   backdrop_url = excluded.backdrop_url,
   vote_average = excluded.vote_average,
   trailer_key = excluded.trailer_key,
-  release_date = excluded.release_date;
+  release_date = excluded.release_date,
+  popularity = excluded.popularity,
+  vote_count = excluded.vote_count,
+  -- data IMDb tidak ditimpa dengan kosong kalau kali ini OMDb tidak dipakai
+  imdb_id = coalesce(excluded.imdb_id, movies.imdb_id),
+  imdb_rating = coalesce(excluded.imdb_rating, movies.imdb_rating),
+  imdb_votes = coalesce(excluded.imdb_votes, movies.imdb_votes),
+  age_rated = coalesce(excluded.age_rated, movies.age_rated);
 
--- Jadwal dummy 3 hari ke depan, hanya untuk film yang belum punya jadwal mendatang.
-insert into showtimes (movie_id, starts_at, studio, price_regular, price_premium)
-select m.id,
-       (((now() at time zone 'Asia/Jakarta')::date + d) + v.t) at time zone 'Asia/Jakarta',
-       'Studio ' || (1 + (m.id % 3)),
-       45000,
-       65000
-from movies m
-cross join generate_series(0, 2) as d
-cross join (values (time '13:00'), (time '16:30'), (time '19:45')) as v(t)
-where m.tmdb_id is not null
-  and not exists (select 1 from showtimes s where s.movie_id = m.id and s.starts_at > now());
+${clean ? cleanSql(items) : ""}-- Jadwal 7 hari ke depan di semua bioskop.
+-- Fungsi ini dibuat oleh supabase-cinema-auth.sql, jadi file itu harus dijalankan lebih dulu.
+select refresh_showtimes(7) as jadwal_baru_dibuat;
 `;
 }
 
@@ -239,14 +313,19 @@ export async function run() {
     );
     process.exit(1);
   }
-  const items = await fetchMovies(token);
+  const omdbKey = readEnv("OMDB_KEY");
+  if (!omdbKey)
+    console.log(
+      "OMDB_KEY kosong: rating IMDb dilewati (hanya data TMDB). Itu tidak apa-apa.",
+    );
+  const items = await fetchMovies(token, COUNT, ID_COUNT, { omdbKey });
   if (items.length === 0)
     throw new Error("Tidak ada film yang didapat dari TMDB.");
   const clean = process.argv.includes("--bersih");
   fs.writeFileSync("import.sql", buildSql(items, { clean }), "utf8");
   const nId = items.filter((m) => m.origin === "ID").length;
   console.log(
-    `Selesai: ${items.length} film ditulis ke import.sql (${nId} film Indonesia, ${items.length - nId} film luar negeri)${clean ? " + pembersihan film lama" : ""}`,
+    `Selesai: ${items.length} film ditulis ke import.sql (${nId} film Indonesia, ${items.length - nId} film luar negeri, ${items.filter((m) => m.imdb_rating != null).length} dengan rating IMDb)${clean ? " + pembersihan film lama" : ""}`,
   );
   for (const m of items) console.log(` - [${m.origin}] ${m.title}`);
 }

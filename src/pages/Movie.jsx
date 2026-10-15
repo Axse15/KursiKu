@@ -4,7 +4,13 @@ import { supabase, unwrap } from "../lib/supabase";
 import { useAsync } from "../lib/useAsync";
 import { useCinema } from "../lib/cinema";
 import { dayKey, fmtDayChip, fmtTime, rupiah, scoreLabel } from "../lib/config";
+import { dealPercent, dealPrice } from "../lib/deals";
+import { rankCinemas, useUserLocation } from "../lib/geo";
+import { fmtKm } from "../lib/nearby";
+import { useAuth } from "../lib/auth";
+import { useProfile } from "../lib/profile";
 import CinemaPicker from "../components/CinemaPicker";
+import NearbyCinemas from "../components/NearbyCinemas";
 import TrailerModal, { isValidYoutubeKey } from "../components/TrailerModal";
 import {
   Backdrop,
@@ -17,16 +23,22 @@ import {
 
 export default function Movie() {
   const { id } = useParams();
-  const { selected, select } = useCinema();
+  const { cinemas, selected, select, loading: cinemaLoading } = useCinema();
+  const { loading: authLoading } = useAuth();
+  const { loading: profileLoading } = useProfile();
   const [day, setDay] = useState(null);
   const [trailerOpen, setTrailerOpen] = useState(false);
+  // Pengguna belum memilih bioskop -> cari yang terdekat otomatis (minta izin lokasi sekali per sesi tab).
+  // Menunggu data login/profil dulu, karena bioskop favorit di profil bisa menentukan pilihan.
+  const geo = useUserLocation({
+    auto: !selected && !cinemaLoading && !authLoading && !profileLoading,
+  });
 
   const { data, loading, error, reload } = useAsync(async () => {
     const movie = unwrap(
       await supabase.from("movies").select("*").eq("id", id).maybeSingle(),
     );
     if (!movie) return { movie: null, showtimes: [] };
-    // semua jadwal film ini (maks ~60 baris), disaring per bioskop di sisi browser
     const showtimes = unwrap(
       await supabase
         .from("showtimes")
@@ -61,7 +73,6 @@ export default function Movie() {
   const { movie, showtimes } = data;
   const year = movie.release_date ? movie.release_date.slice(0, 4) : null;
 
-  // jadwal di bioskop pilihan -> daftar hari -> kelompok per bioskop pada hari terpilih
   const list = selected
     ? showtimes.filter((s) => s.cinema_id === selected.id)
     : showtimes;
@@ -76,6 +87,20 @@ export default function Movie() {
     (byCinema[s.cinema_id] ||= { cinema: s.cinemas, items: [] }).items.push(s);
   }
 
+  // urutkan bioskop KursiKu dari yang terdekat (kalau lokasi diketahui)
+  const kmOf = {};
+  if (geo.status === "ok")
+    for (const r of rankCinemas(cinemas, geo.lat, geo.lon))
+      kmOf[String(r.cinema.id)] = r.km;
+  const groups = Object.entries(byCinema).sort(
+    ([a], [b]) => (kmOf[a] ?? 1e9) - (kmOf[b] ?? 1e9),
+  );
+  const nearestId =
+    groups.length > 0 && kmOf[groups[0][0]] != null ? groups[0][0] : null;
+  const nearest = nearestId
+    ? { cinema: groups[0][1].cinema, km: kmOf[nearestId] }
+    : null;
+
   return (
     <article>
       {movie.backdrop_url && (
@@ -88,7 +113,7 @@ export default function Movie() {
           <Backdrop src={movie.backdrop_url} />
           <div
             aria-hidden="true"
-            className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent"
+            className="absolute inset-0 bg-gradient-to-t from-page/80 via-transparent to-transparent"
           />
         </div>
       )}
@@ -101,11 +126,31 @@ export default function Movie() {
         />
         <div>
           <h1 className="font-display text-3xl font-bold">{movie.title}</h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            {movie.genre} · {movie.duration_min} menit · {scoreLabel(movie)}
-            {year && ` · ${year}`}
+          <p className="mt-1 text-sm text-muted">
+            {movie.genre} · {movie.duration_min} menit{year && ` · ${year}`}
           </p>
-          <p className="mt-3 text-zinc-300">{movie.synopsis}</p>
+          <p className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
+            {movie.vote_average ? (
+              <span className="rounded border border-line-strong px-2 py-0.5">
+                ★ {Number(movie.vote_average).toFixed(1)} TMDB
+              </span>
+            ) : (
+              <span className="rounded border border-line-strong px-2 py-0.5">
+                {scoreLabel(movie)}
+              </span>
+            )}
+            {movie.imdb_rating && (
+              <span className="rounded border border-line-strong px-2 py-0.5">
+                IMDb {Number(movie.imdb_rating).toFixed(1)}
+              </span>
+            )}
+            {movie.age_rated && (
+              <span className="rounded border border-line-strong px-2 py-0.5">
+                {movie.age_rated}
+              </span>
+            )}
+          </p>
+          <p className="mt-3 text-ink-2">{movie.synopsis}</p>
           {isValidYoutubeKey(movie.trailer_key) && (
             <button
               type="button"
@@ -130,6 +175,13 @@ export default function Movie() {
         Jadwal tayang
       </h2>
       <CinemaPicker className="mb-5" />
+      {!selected && list.length > 0 && (
+        <NearbyCinemas
+          geo={geo}
+          nearest={nearest}
+          onPick={() => select(nearestId)}
+        />
+      )}
 
       {showtimes.length === 0 ? (
         <Empty title="Belum ada jadwal">
@@ -156,6 +208,7 @@ export default function Movie() {
             {days.map((d) => {
               const { top, bottom } = fmtDayChip(firstOfDay[d]);
               const active = d === activeDay;
+              const pct = dealPercent(movie.id, firstOfDay[d]);
               return (
                 <button
                   key={d}
@@ -164,45 +217,84 @@ export default function Movie() {
                   onClick={() => setDay(d)}
                   className={`min-h-12 shrink-0 rounded-xl border px-4 py-1.5 text-center ${
                     active
-                      ? "border-amber-400 bg-amber-400 text-zinc-950"
-                      : "border-zinc-700 text-zinc-300 hover:border-amber-400"
+                      ? "border-accent bg-accent text-on-accent"
+                      : "border-line-strong text-ink-2 hover:border-accent"
                   }`}
                 >
                   <span className="block text-xs">{top}</span>
                   <span className="block text-sm font-semibold">{bottom}</span>
+                  {pct > 0 && (
+                    <span
+                      className={`block text-[11px] font-bold ${active ? "" : "text-accent-ink"}`}
+                    >
+                      −{pct}%
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
 
+          {days.some((d) => dealPercent(movie.id, firstOfDay[d]) > 0) && (
+            <p className="mt-2 text-xs text-muted">
+              Angka −% di bawah tanggal adalah diskon film untuk hari itu.
+              Diskon berganti setiap hari.
+            </p>
+          )}
+
           <div className="mt-4 space-y-4">
-            {Object.entries(byCinema).map(([cinemaId, { cinema, items }]) => (
+            {groups.map(([cinemaId, { cinema, items }]) => (
               <section
                 key={cinemaId}
-                className="rounded-xl border border-zinc-800 p-4"
+                className={`rounded-xl border p-4 ${cinemaId === nearestId ? "border-accent" : "border-line"}`}
               >
-                <h3 className="font-medium">
-                  {cinema?.name}{" "}
-                  <span className="text-sm font-normal text-zinc-400">
-                    · {cinema?.city}
+                <h3 className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium">
+                  <span>
+                    {cinema?.name}{" "}
+                    <span className="text-sm font-normal text-muted">
+                      · {cinema?.city}
+                    </span>
                   </span>
+                  {kmOf[cinemaId] != null && (
+                    <span className="text-xs font-normal text-muted">
+                      {fmtKm(kmOf[cinemaId])}
+                    </span>
+                  )}
+                  {cinemaId === nearestId && (
+                    <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-on-accent">
+                      Terdekat
+                    </span>
+                  )}
                 </h3>
-                <ul className="mt-3 flex flex-wrap gap-2">
-                  {items.map((s) => (
-                    <li key={s.id}>
-                      <Link
-                        to={`/pilih-kursi/${s.id}`}
-                        className="block min-h-11 rounded-xl border border-zinc-700 px-4 py-2 text-center hover:border-amber-400"
-                      >
-                        <span className="block font-semibold">
-                          {fmtTime(s.starts_at)}
-                        </span>
-                        <span className="block text-xs text-zinc-400">
-                          {s.studio} · {rupiah(s.price_regular)}
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
+                <ul className="mt-3 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+                  {items.map((s) => {
+                    const pct = dealPercent(movie.id, s.starts_at);
+                    return (
+                      <li key={s.id}>
+                        <Link
+                          to={`/pilih-kursi/${s.id}`}
+                          className="block min-h-11 rounded-xl border border-line-strong px-4 py-2 text-center hover:border-accent"
+                        >
+                          <span className="block font-semibold">
+                            {fmtTime(s.starts_at)}
+                          </span>
+                          <span className="block text-xs text-muted">
+                            {s.studio}
+                          </span>
+                          {pct > 0 && (
+                            <span className="block text-xs text-faint line-through">
+                              {rupiah(s.price_regular)}
+                            </span>
+                          )}
+                          <span
+                            className={`block text-xs ${pct > 0 ? "font-semibold text-accent-ink" : "text-muted"}`}
+                          >
+                            {rupiah(dealPrice(s.price_regular, pct))}
+                          </span>
+                        </Link>
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             ))}

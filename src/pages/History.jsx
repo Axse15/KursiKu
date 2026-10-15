@@ -64,23 +64,23 @@ export default function History() {
           <li key={o.code}>
             <Link
               to={`/tiket/${o.code}`}
-              className="block rounded-xl border border-zinc-800 p-4 hover:border-amber-400"
+              className="block rounded-xl border border-line p-4 hover:border-accent"
             >
               <p className="font-display text-lg font-semibold">
                 {o.showtime.movies.title}
               </p>
               {o.showtime.cinemas && (
-                <p className="mt-1 text-sm text-amber-300">
+                <p className="mt-1 text-sm text-accent-ink">
                   {cinemaLabel(o.showtime)}
                 </p>
               )}
-              <p className="mt-1 text-sm capitalize text-zinc-400">
+              <p className="mt-1 text-sm capitalize text-muted">
                 {fmtDate(o.showtime.starts_at)} ·{" "}
                 {fmtTime(o.showtime.starts_at)} · {o.showtime.studio}
               </p>
               <p className="mt-2 text-sm">
                 Kursi {sortSeats(o.seats).join(", ")} ·{" "}
-                <span className="font-mono text-zinc-400">{o.code}</span>
+                <span className="font-mono text-muted">{o.code}</span>
               </p>
             </Link>
           </li>
@@ -91,22 +91,24 @@ export default function History() {
   return (
     <section>
       <h1 className="mb-2 font-display text-2xl font-bold">Riwayat pesanan</h1>
-      <p className="mb-4 text-sm text-zinc-400">
+      <p className="mb-4 text-sm text-muted">
         {user ? (
-          "Menampilkan pesanan akun Google kamu, ditambah yang dibuat di browser ini sebelum login."
+          "Menampilkan pesanan akun Google kamu, ditambah tiket lama yang dibuat di browser ini sebelum login diwajibkan."
         ) : (
           <>
-            Riwayat tamu hanya tersimpan di browser ini.{" "}
+            Pemesanan sekarang memakai akun Google, jadi riwayat lengkapmu ada
+            di akun.{" "}
             {enabled && (
               <button
                 type="button"
                 onClick={signIn}
-                className="text-amber-300 underline"
+                className="text-accent-ink underline"
               >
                 Masuk dengan Google
               </button>
             )}{" "}
-            agar tersimpan di akunmu.
+            untuk melihatnya. Tiket lama yang tersimpan di browser ini tetap
+            tampil di bawah.
           </>
         )}
       </p>

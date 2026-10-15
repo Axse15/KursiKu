@@ -25,7 +25,7 @@ export function Avatar({ user, size = 32 }) {
     <span
       aria-hidden="true"
       style={{ ...box, fontSize: size / 2.2 }}
-      className="flex items-center justify-center rounded-full bg-amber-400 font-bold text-zinc-950"
+      className="flex items-center justify-center rounded-full bg-accent font-bold text-on-accent"
     >
       {displayName(user)[0]?.toUpperCase()}
     </span>
@@ -42,7 +42,7 @@ export default function AuthButton() {
     return (
       <span
         aria-hidden="true"
-        className="h-8 w-20 animate-pulse rounded-lg bg-zinc-800"
+        className="h-8 w-20 animate-pulse rounded-lg bg-raised"
       />
     );
 
@@ -53,17 +53,17 @@ export default function AuthButton() {
           <Link
             to="/profil"
             aria-label={`Profil ${displayName(user)}`}
-            className="flex min-h-11 items-center gap-2 rounded-lg px-1 hover:text-amber-400"
+            className="flex min-h-11 items-center gap-2 rounded-lg px-1 hover:text-accent-ink"
           >
             <Avatar user={user} />
-            <span className="hidden max-w-32 truncate text-sm text-zinc-200 sm:inline">
+            <span className="hidden max-w-32 truncate text-sm text-ink-2 md:inline">
               {displayName(user)}
             </span>
           </Link>
           <button
             type="button"
             onClick={signOut}
-            className="min-h-11 rounded-lg px-2 text-sm text-zinc-400 hover:text-amber-400"
+            className="min-h-11 rounded-lg px-2 text-sm text-muted hover:text-accent-ink"
           >
             Keluar
           </button>
@@ -73,7 +73,7 @@ export default function AuthButton() {
           type="button"
           onClick={signIn}
           aria-label="Masuk dengan Google"
-          className="min-h-11 rounded-xl border border-zinc-600 px-3 text-sm font-medium text-zinc-100 hover:border-amber-400"
+          className="min-h-11 rounded-xl border border-line-hover px-3 text-sm font-medium text-ink hover:border-accent"
         >
           <span className="sm:hidden">Masuk</span>
           <span className="hidden sm:inline">Masuk dengan Google</span>
@@ -83,7 +83,7 @@ export default function AuthButton() {
       {authError && (
         <p
           role="alert"
-          className="absolute right-0 top-full z-20 mt-2 w-64 rounded-lg border border-red-500/40 bg-red-950 p-3 text-xs text-red-200 shadow-lg"
+          className="absolute right-0 top-full z-20 mt-2 w-64 rounded-lg border border-danger-line bg-danger-bg p-3 text-xs text-danger shadow-lg"
         >
           Login gagal: {authError}{" "}
           <button type="button" onClick={clearError} className="underline">

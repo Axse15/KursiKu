@@ -6,7 +6,9 @@ import { displayName, useAuth } from "../lib/auth";
 import { useProfile } from "../lib/profile";
 import { useCinema } from "../lib/cinema";
 import { cinemaLabel, fmtDate, fmtTime, rupiah } from "../lib/config";
-import { seatPrice, sortSeats } from "../lib/seats";
+import { sortSeats } from "../lib/seats";
+import { orderTotals } from "../lib/order";
+import { usePromoMap } from "../lib/usePromos";
 import { Avatar } from "../components/AuthButton";
 import {
   Empty,
@@ -32,6 +34,8 @@ function groupOrders(rows) {
     (map[r.booking_code] ||= {
       code: r.booking_code,
       showtime: r.showtimes,
+      promo_code: r.promo_code,
+      deal_percent: r.deal_percent || 0,
       seats: [],
     }).seats.push(r.seat_code);
   }
@@ -40,8 +44,8 @@ function groupOrders(rows) {
 
 function Stat({ label, value }) {
   return (
-    <div className="rounded-xl border border-zinc-800 p-4">
-      <dt className="text-xs text-zinc-500">{label}</dt>
+    <div className="rounded-xl border border-line p-4">
+      <dt className="text-xs text-faint">{label}</dt>
       <dd className="mt-1 font-display text-xl font-bold">{value}</dd>
     </div>
   );
@@ -74,6 +78,8 @@ export default function Profile() {
       ),
     );
   }, [user?.id]);
+
+  const { data: promoMap } = usePromoMap();
 
   // null = belum diubah, jadi tampilkan nilai dari profil
   const [nick, setNick] = useState(null);
@@ -154,13 +160,18 @@ export default function Profile() {
   const now = Date.now();
   let stats = null;
   let upcoming = [];
-  if (orders) {
+  if (orders && promoMap) {
     const perCinema = {};
     let seatCount = 0;
     let spent = 0;
     for (const o of orders) {
       seatCount += o.seats.length;
-      spent += o.seats.reduce((sum, c) => sum + seatPrice(c, o.showtime), 0);
+      spent += orderTotals(
+        o.seats,
+        o.showtime,
+        o.promo_code ? promoMap?.[o.promo_code] : null,
+        o.deal_percent,
+      ).total;
       const name = o.showtime.cinemas?.name;
       if (name) perCinema[name] = (perCinema[name] || 0) + 1;
     }
@@ -184,16 +195,16 @@ export default function Profile() {
     <div className="space-y-8">
       <h1 className="font-display text-2xl font-bold">Profil</h1>
 
-      <section className="flex items-center gap-4 rounded-2xl border border-zinc-800 p-5">
+      <section className="flex items-center gap-4 rounded-2xl border border-line p-5">
         <Avatar user={user} size={64} />
         <div className="min-w-0">
           <p className="truncate font-display text-xl font-semibold">
             {displayName(user)}
           </p>
           {user.email && (
-            <p className="truncate text-sm text-zinc-400">{user.email}</p>
+            <p className="truncate text-sm text-muted">{user.email}</p>
           )}
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-faint">
             Masuk lewat Google
             {user.created_at && ` · bergabung ${fmtJoined(user.created_at)}`}
           </p>
@@ -213,7 +224,7 @@ export default function Profile() {
             <Stat label="Pesanan" value={stats.orderCount} />
             <Stat label="Kursi dipesan" value={stats.seatCount} />
             <Stat
-              label="Total belanja (simulasi)"
+              label="Total belanja (simulasi, setelah diskon & promo)"
               value={rupiah(stats.spent)}
             />
             <Stat label="Bioskop terfavorit" value={stats.topCinema} />
@@ -226,12 +237,12 @@ export default function Profile() {
           <h2 id="tiket-judul" className="font-display text-lg font-semibold">
             Tiket mendatang
           </h2>
-          <Link to="/riwayat" className="text-sm text-amber-300 underline">
+          <Link to="/riwayat" className="text-sm text-accent-ink underline">
             Semua riwayat
           </Link>
         </div>
         {upcoming.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-zinc-700 p-4 text-sm text-zinc-400">
+          <p className="rounded-xl border border-dashed border-line-strong p-4 text-sm text-muted">
             Belum ada tiket untuk jadwal yang akan datang.{" "}
             <Link to="/" className="underline">
               Cari film
@@ -243,17 +254,17 @@ export default function Profile() {
               <li key={o.code}>
                 <Link
                   to={`/tiket/${o.code}`}
-                  className="block rounded-xl border border-zinc-800 p-4 hover:border-amber-400"
+                  className="block rounded-xl border border-line p-4 hover:border-accent"
                 >
                   <p className="font-medium">{o.showtime.movies.title}</p>
-                  <p className="mt-1 text-sm capitalize text-zinc-400">
+                  <p className="mt-1 text-sm capitalize text-muted">
                     {fmtDate(o.showtime.starts_at)} ·{" "}
                     {fmtTime(o.showtime.starts_at)}
                     {o.showtime.cinemas && ` · ${cinemaLabel(o.showtime)}`}
                   </p>
                   <p className="mt-1 text-sm">
                     Kursi {sortSeats(o.seats).join(", ")} ·{" "}
-                    <span className="font-mono text-zinc-400">{o.code}</span>
+                    <span className="font-mono text-muted">{o.code}</span>
                   </p>
                 </Link>
               </li>
@@ -265,7 +276,7 @@ export default function Profile() {
       <form
         onSubmit={onSave}
         aria-labelledby="atur-judul"
-        className="space-y-4 rounded-2xl border border-zinc-800 p-5"
+        className="space-y-4 rounded-2xl border border-line p-5"
       >
         <h2 id="atur-judul" className="font-display text-lg font-semibold">
           Pengaturan
@@ -274,7 +285,7 @@ export default function Profile() {
         {profileError && (
           <p
             role="alert"
-            className="rounded-lg bg-red-950/50 p-3 text-sm text-red-200"
+            className="rounded-lg bg-danger-bg p-3 text-sm text-danger"
           >
             Profil tidak bisa dimuat: {profileError}. Pastikan file{" "}
             <code>supabase-profile.sql</code> sudah dijalankan.
@@ -284,7 +295,7 @@ export default function Profile() {
         <div>
           <label
             htmlFor="nick"
-            className="block text-sm font-medium text-zinc-300"
+            className="block text-sm font-medium text-ink-2"
           >
             Nama panggilan
           </label>
@@ -295,19 +306,16 @@ export default function Profile() {
             maxLength={30}
             disabled={profileLoading || busy}
             placeholder={`Kosong = pakai nama dari Google`}
-            className="mt-1 min-h-11 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3"
+            className="mt-1 min-h-11 w-full rounded-xl border border-line-strong bg-panel px-3"
           />
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-faint">
             Dipakai otomatis saat checkout dan tercetak di tiket. Nama ini
             tersimpan di data pesanan.
           </p>
         </div>
 
         <div>
-          <label
-            htmlFor="fav"
-            className="block text-sm font-medium text-zinc-300"
-          >
+          <label htmlFor="fav" className="block text-sm font-medium text-ink-2">
             Bioskop favorit
           </label>
           <select
@@ -315,7 +323,7 @@ export default function Profile() {
             value={favValue}
             onChange={(e) => setFav(e.target.value)}
             disabled={profileLoading || busy}
-            className="mt-1 min-h-11 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3"
+            className="mt-1 min-h-11 w-full rounded-xl border border-line-strong bg-panel px-3"
           >
             <option value="">Belum ada</option>
             {cinemas.map((c) => (
@@ -324,7 +332,7 @@ export default function Profile() {
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-faint">
             Jadi pilihan awal di beranda, juga di perangkat lain yang kamu pakai
             masuk.
           </p>
@@ -333,7 +341,7 @@ export default function Profile() {
         {msg && (
           <p
             role={msg.ok ? "status" : "alert"}
-            className={`text-sm ${msg.ok ? "text-emerald-300" : "text-red-300"}`}
+            className={`text-sm ${msg.ok ? "text-ok" : "text-danger"}`}
           >
             {msg.text}
           </p>
@@ -376,14 +384,14 @@ export default function Profile() {
             <button
               type="button"
               onClick={() => setConfirmReset(true)}
-              className="text-sm text-zinc-400 underline"
+              className="text-sm text-muted underline"
             >
               Reset profil
             </button>
           ))}
       </section>
 
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-faint">
         Email hanya tampil di halaman ini dan tidak ikut tersimpan di data
         pesanan. Pesanan yang sudah dibuat tidak bisa dihapus dari sini.
       </p>

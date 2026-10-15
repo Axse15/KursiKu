@@ -24,7 +24,20 @@ import {
   seatPrice,
   sortSeats,
 } from "../lib/seats";
+import { dealPercent, dealPrice } from "../lib/deals";
+import { useAuth } from "../lib/auth";
 import { Empty, ErrorBox, Skeleton, btnPrimary } from "../components/ui";
+
+function LoginNote() {
+  const { user, loading } = useAuth();
+  if (loading || user) return null;
+  return (
+    <p className="mt-2 text-xs text-muted">
+      Kamu akan diminta masuk dengan Google sebelum membayar. Kursi pilihanmu
+      tetap tersimpan.
+    </p>
+  );
+}
 
 function Seat({ code, status, onToggle }) {
   const premium = isPremium(code);
@@ -38,10 +51,10 @@ function Seat({ code, status, onToggle }) {
 
   const styles = {
     free: premium
-      ? "border-amber-500/70 text-zinc-200 hover:bg-amber-400/20"
-      : "border-zinc-500 text-zinc-300 hover:bg-zinc-800",
-    selected: "border-amber-400 bg-amber-400 font-bold text-zinc-950",
-    taken: "cursor-not-allowed border-zinc-800 bg-zinc-800 text-zinc-500",
+      ? "border-warn-line text-ink-2 hover:bg-accent/20"
+      : "border-line-hover text-ink-2 hover:bg-raised",
+    selected: "border-accent bg-accent font-bold text-on-accent",
+    taken: "cursor-not-allowed border-line bg-raised text-faint",
   };
 
   return (
@@ -59,29 +72,27 @@ function Seat({ code, status, onToggle }) {
 }
 
 function Legend() {
-  const item = "flex items-center gap-2 text-xs text-zinc-400";
+  const item = "flex items-center gap-2 text-xs text-muted";
   const box =
     "flex h-5 w-5 items-center justify-center rounded border text-[10px]";
   return (
     <ul className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2">
       <li className={item}>
-        <span className={`${box} border-zinc-500`}>1</span>Reguler
+        <span className={`${box} border-line-hover`}>1</span>Reguler
       </li>
       <li className={item}>
-        <span className={`${box} border-amber-500/70`}>1</span>Premium
+        <span className={`${box} border-warn-line`}>1</span>Premium
       </li>
       <li className={item}>
         <span
-          className={`${box} border-amber-400 bg-amber-400 font-bold text-zinc-950`}
+          className={`${box} border-accent bg-accent font-bold text-on-accent`}
         >
           ✓
         </span>
         Dipilih
       </li>
       <li className={item}>
-        <span className={`${box} border-zinc-800 bg-zinc-800 text-zinc-500`}>
-          ✕
-        </span>
+        <span className={`${box} border-line bg-raised text-faint`}>✕</span>
         Terjual
       </li>
     </ul>
@@ -119,7 +130,6 @@ export default function Seats() {
       : "",
   );
 
-  // buang pilihan yang ternyata sudah terjual (mis. diambil orang lain) dan beri tahu pengguna
   useEffect(() => {
     if (!data) return;
     const lost = selected.filter((c) => data.taken.has(c));
@@ -130,13 +140,9 @@ export default function Seats() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
-  // Realtime: setiap ada pesanan baru di jadwal ini, muat ulang denah kursi.
-  // Database tetap penentu akhir lewat constraint UNIQUE, jadi ini murni soal tampilan.
-  // Fitur tambahan: kalau gagal (jaringan, websocket diblokir, dll) halaman tetap jalan tanpa realtime.
   useEffect(() => {
     let channel = null;
     try {
-      // nama unik supaya tidak bentrok dengan channel lama yang masih proses ditutup
       channel = supabase
         .channel(
           `kursi-${showtimeId}-${Math.random().toString(36).slice(2, 8)}`,
@@ -178,7 +184,11 @@ export default function Seats() {
   }
 
   const { showtime, taken } = data;
-  const total = selected.reduce((sum, c) => sum + seatPrice(c, showtime), 0);
+  const pct = dealPercent(showtime.movie_id, showtime.starts_at);
+  const total = selected.reduce(
+    (sum, c) => sum + seatPrice(c, showtime, pct),
+    0,
+  );
 
   function toggle(code) {
     if (selected.includes(code)) {
@@ -214,22 +224,27 @@ export default function Seats() {
         {showtime.movies.title}
       </h1>
       {showtime.cinemas && (
-        <p className="mt-1 text-sm font-medium text-amber-300">
+        <p className="mt-1 text-sm font-medium text-accent-ink">
           {cinemaLabel(showtime)}
         </p>
       )}
-      <p className="mt-1 text-sm capitalize text-zinc-400">
+      <p className="mt-1 text-sm capitalize text-muted">
         {fmtDate(showtime.starts_at)} · {fmtTime(showtime.starts_at)} ·{" "}
         {showtime.studio}
       </p>
+      {pct > 0 && (
+        <p className="mt-2 inline-block rounded-lg bg-warn-bg px-3 py-1.5 text-sm font-medium text-accent-ink">
+          Diskon film {pct}% berlaku untuk jadwal ini
+        </p>
+      )}
 
-      <div className="mt-5 flex flex-wrap items-end gap-3 rounded-xl border border-zinc-800 p-3">
-        <label className="text-sm text-zinc-300">
+      <div className="mt-5 flex flex-wrap items-end gap-3 rounded-xl border border-line p-3">
+        <label className="text-sm text-ink-2">
           Jumlah tiket
           <select
             value={qty}
             onChange={(e) => setQty(Number(e.target.value))}
-            className="ml-2 min-h-10 rounded-lg border border-zinc-700 bg-zinc-900 px-2"
+            className="ml-2 min-h-10 rounded-lg border border-line-strong bg-panel px-2"
           >
             {Array.from({ length: MAX_SEATS }, (_, i) => i + 1).map((n) => (
               <option key={n} value={n}>
@@ -241,23 +256,26 @@ export default function Seats() {
         <button
           type="button"
           onClick={pickBest}
-          className="min-h-10 rounded-lg border border-amber-400 px-4 text-sm font-medium text-amber-400 hover:bg-amber-400/10"
+          className="min-h-10 rounded-lg border border-accent px-4 text-sm font-medium text-accent-ink hover:bg-accent/10"
         >
           Pilihkan kursi terbaik
         </button>
       </div>
 
       <div className="mt-8" role="group" aria-label="Denah kursi">
-        <div className="mx-auto mb-1 h-1.5 w-3/4 rounded-full bg-amber-400/70 shadow-[0_0_30px_rgba(251,191,36,0.5)]" />
-        <p className="mb-6 text-center text-xs tracking-[0.3em] text-zinc-500">
+        <div className="mx-auto mb-1 h-1.5 w-3/4 rounded-full bg-accent/70 shadow-[0_0_30px_rgba(251,191,36,0.5)]" />
+        <p className="mb-6 text-center text-xs tracking-[0.3em] text-faint">
           LAYAR
         </p>
 
-        <div className="overflow-x-auto">
+        <div className="-mx-2 overflow-x-auto min-[380px]:mx-0">
           <div className="mx-auto w-fit space-y-1.5">
             {ROWS.map((row) => (
               <div key={row} className="flex items-center gap-0.5 sm:gap-1">
-                <span className="w-4 text-xs text-zinc-500" aria-hidden="true">
+                <span
+                  className="w-3 text-xs text-faint min-[400px]:w-4"
+                  aria-hidden="true"
+                >
                   {row}
                 </span>
                 {cols.map((col) => {
@@ -271,7 +289,10 @@ export default function Seats() {
                     <Fragment key={code}>
                       <Seat code={code} status={status} onToggle={toggle} />
                       {AISLE_AFTER.includes(col) && (
-                        <span className="w-3 sm:w-5" aria-hidden="true" />
+                        <span
+                          className="w-2 min-[400px]:w-3 sm:w-5"
+                          aria-hidden="true"
+                        />
                       )}
                     </Fragment>
                   );
@@ -281,25 +302,27 @@ export default function Seats() {
           </div>
         </div>
         <Legend />
-        <p className="mt-2 text-center text-xs text-zinc-500">
-          Reguler {rupiah(showtime.price_regular)} · Premium (baris F-H){" "}
-          {rupiah(showtime.price_premium)}
+        <p className="mt-2 text-center text-xs text-faint">
+          Reguler {pct > 0 && <s>{rupiah(showtime.price_regular)}</s>}{" "}
+          {rupiah(dealPrice(showtime.price_regular, pct))} · Premium (baris F-H){" "}
+          {pct > 0 && <s>{rupiah(showtime.price_premium)}</s>}{" "}
+          {rupiah(dealPrice(showtime.price_premium, pct))}
         </p>
       </div>
 
       {notice && (
         <p
           role="alert"
-          className="mt-4 rounded-lg bg-amber-950/40 p-3 text-sm text-amber-200"
+          className="mt-4 rounded-lg bg-warn-bg p-3 text-sm text-accent-ink"
         >
           {notice}
         </p>
       )}
 
-      <div className="sticky bottom-0 -mx-4 mt-8 border-t border-zinc-800 bg-zinc-950/95 p-4">
+      <div className="sticky bottom-0 -mx-4 mt-8 border-t border-line bg-page/95 p-4">
         <div className="flex items-center justify-between gap-4">
           <div className="text-sm">
-            <p className="text-zinc-400">
+            <p className="text-muted">
               {selected.length === 0
                 ? "Belum ada kursi dipilih"
                 : `Kursi: ${sortSeats(selected).join(", ")}`}
@@ -319,6 +342,7 @@ export default function Seats() {
             Lanjut
           </button>
         </div>
+        <LoginNote />
       </div>
     </section>
   );
