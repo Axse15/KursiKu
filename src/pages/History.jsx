@@ -1,29 +1,37 @@
 import { Link } from "react-router-dom";
 import { supabase, unwrap } from "../lib/supabase";
 import { useAsync } from "../lib/useAsync";
+import { useAuth } from "../lib/auth";
 import { getCodes } from "../lib/booking";
-import { fmtDate, fmtTime } from "../lib/config";
+import { cinemaLabel, fmtDate, fmtTime } from "../lib/config";
 import { sortSeats } from "../lib/seats";
 import { Empty, ErrorBox, Skeleton } from "../components/ui";
 import { BOOKING_SELECT } from "./Ticket";
 
+const CODE_OK = /^KSK-[A-Z0-9]{6}$/; // kode dari localStorage disaring dulu sebelum masuk ke filter query
+
 export default function History() {
+  const { enabled, user, loading: authLoading, signIn } = useAuth();
+
   const {
     data: orders,
     loading,
     error,
     reload,
   } = useAsync(async () => {
-    const codes = getCodes();
-    if (codes.length === 0) return [];
-    const rows = unwrap(
-      await supabase
-        .from("bookings")
-        .select(BOOKING_SELECT)
-        .in("booking_code", codes),
-    );
+    if (authLoading) return null; // tunggu status login dulu supaya tidak memuat dua kali
+    const codes = getCodes().filter((c) => CODE_OK.test(c));
 
-    // satu pesanan = banyak baris kursi; gabungkan per kode booking
+    // login: semua pesanan akun ini + pesanan dari browser ini. Tamu: hanya dari browser ini.
+    let q = supabase.from("bookings").select(BOOKING_SELECT);
+    if (user && codes.length > 0)
+      q = q.or(`user_id.eq.${user.id},booking_code.in.(${codes.join(",")})`);
+    else if (user) q = q.eq("user_id", user.id);
+    else if (codes.length > 0) q = q.in("booking_code", codes);
+    else return [];
+    const rows = unwrap(await q);
+
+    // satu pesanan = banyak baris kursi; gabungkan per kode booking, yang terbaru di atas
     const map = {};
     for (const r of rows) {
       (map[r.booking_code] ||= {
@@ -32,16 +40,18 @@ export default function History() {
         seats: [],
       }).seats.push(r.seat_code);
     }
-    return codes.filter((c) => map[c]).map((c) => map[c]);
-  }, []);
+    return Object.values(map).sort(
+      (a, b) => new Date(b.showtime.starts_at) - new Date(a.showtime.starts_at),
+    );
+  }, [authLoading, user?.id]);
 
   let content;
   if (error) content = <ErrorBox message={error} onRetry={reload} />;
-  else if (loading && !orders) content = <Skeleton className="h-40" />;
+  else if (authLoading || orders == null)
+    content = <Skeleton className="h-40" />;
   else if (orders.length === 0)
     content = (
       <Empty title="Belum ada pesanan">
-        Riwayat disimpan di browser ini.{" "}
         <Link to="/" className="underline">
           Pesan tiket pertamamu
         </Link>
@@ -59,6 +69,11 @@ export default function History() {
               <p className="font-display text-lg font-semibold">
                 {o.showtime.movies.title}
               </p>
+              {o.showtime.cinemas && (
+                <p className="mt-1 text-sm text-amber-300">
+                  {cinemaLabel(o.showtime)}
+                </p>
+              )}
               <p className="mt-1 text-sm capitalize text-zinc-400">
                 {fmtDate(o.showtime.starts_at)} ·{" "}
                 {fmtTime(o.showtime.starts_at)} · {o.showtime.studio}
@@ -75,7 +90,26 @@ export default function History() {
 
   return (
     <section>
-      <h1 className="mb-4 font-display text-2xl font-bold">Riwayat pesanan</h1>
+      <h1 className="mb-2 font-display text-2xl font-bold">Riwayat pesanan</h1>
+      <p className="mb-4 text-sm text-zinc-400">
+        {user ? (
+          "Menampilkan pesanan akun Google kamu, ditambah yang dibuat di browser ini sebelum login."
+        ) : (
+          <>
+            Riwayat tamu hanya tersimpan di browser ini.{" "}
+            {enabled && (
+              <button
+                type="button"
+                onClick={signIn}
+                className="text-amber-300 underline"
+              >
+                Masuk dengan Google
+              </button>
+            )}{" "}
+            agar tersimpan di akunmu.
+          </>
+        )}
+      </p>
       {content}
     </section>
   );

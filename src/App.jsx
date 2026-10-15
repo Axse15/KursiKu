@@ -1,14 +1,19 @@
+import { useState } from "react";
 import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { isConfigured } from "./lib/supabase";
 import { Empty, btnPrimary } from "./components/ui";
+import ErrorBoundary from "./components/ErrorBoundary";
+import AuthButton from "./components/AuthButton";
+import { AuthProvider } from "./lib/auth";
+import { ProfileProvider } from "./lib/profile";
+import { CinemaProvider } from "./lib/cinema";
 import Home from "./pages/Home";
 import Movie from "./pages/Movie";
 import Seats from "./pages/Seats";
 import Checkout from "./pages/Checkout";
 import Ticket from "./pages/Ticket";
 import History from "./pages/History";
-import { useState } from "react";
-import ErrorBoundary from "./components/ErrorBoundary";
+import Profile from "./pages/Profile";
 
 // Atribusi wajib dari TMDB. Taruh logo resmi TMDB di public/tmdb-logo.svg (kalau belum ada, logo disembunyikan).
 function TmdbCredit() {
@@ -29,6 +34,7 @@ function TmdbCredit() {
     </p>
   );
 }
+
 function Layout({ children }) {
   // beranda dibuat lebih lebar; halaman lain (kursi, bayar, tiket) tetap sempit agar nyaman dibaca
   const width = useLocation().pathname === "/" ? "max-w-6xl" : "max-w-3xl";
@@ -45,12 +51,15 @@ function Layout({ children }) {
           >
             KursiKu
           </Link>
-          <NavLink
-            to="/riwayat"
-            className="flex min-h-11 items-center px-2 text-sm text-zinc-300 hover:text-amber-400"
-          >
-            Riwayat pesanan
-          </NavLink>
+          <div className="flex items-center gap-1 sm:gap-3">
+            <NavLink
+              to="/riwayat"
+              className="flex min-h-11 items-center px-2 text-sm text-zinc-300 hover:text-amber-400"
+            >
+              Riwayat<span className="hidden sm:inline">&nbsp;pesanan</span>
+            </NavLink>
+            <AuthButton />
+          </div>
         </div>
       </header>
 
@@ -81,6 +90,7 @@ function NotFound() {
 
 export default function App() {
   const location = useLocation();
+
   if (!isConfigured) {
     return (
       <Layout>
@@ -102,18 +112,26 @@ export default function App() {
   }
 
   return (
-    <Layout>
-      <ErrorBoundary key={location.pathname}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/film/:id" element={<Movie />} />
-          <Route path="/pilih-kursi/:showtimeId" element={<Seats />} />
-          <Route path="/checkout/:showtimeId" element={<Checkout />} />
-          <Route path="/tiket/:code" element={<Ticket />} />
-          <Route path="/riwayat" element={<History />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </ErrorBoundary>
-    </Layout>
+    <AuthProvider>
+      <ProfileProvider>
+        <CinemaProvider>
+          <Layout>
+            {/* key = alamat halaman, supaya error di satu halaman hilang saat pindah halaman */}
+            <ErrorBoundary key={location.pathname}>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/film/:id" element={<Movie />} />
+                <Route path="/pilih-kursi/:showtimeId" element={<Seats />} />
+                <Route path="/checkout/:showtimeId" element={<Checkout />} />
+                <Route path="/tiket/:code" element={<Ticket />} />
+                <Route path="/riwayat" element={<History />} />
+                <Route path="/profil" element={<Profile />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </ErrorBoundary>
+          </Layout>
+        </CinemaProvider>
+      </ProfileProvider>
+    </AuthProvider>
   );
 }

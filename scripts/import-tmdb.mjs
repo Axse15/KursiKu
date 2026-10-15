@@ -9,7 +9,8 @@ import fs from "node:fs";
 
 const API = "https://api.themoviedb.org/3";
 const IMG = "https://image.tmdb.org/t/p";
-const COUNT = 100;
+const COUNT = 1000;
+const ID_COUNT = 1000; // target film Indonesia dari COUNT (sisanya film luar negeri)
 
 // warna cadangan kalau gambar poster gagal dimuat
 const PALETTE = [
@@ -52,8 +53,58 @@ async function get(path, params, token) {
   return res.json();
 }
 
-export async function fetchMovies(token, count = COUNT) {
+const usable = (m) => m.poster_path && !m.adult;
+const ymd = (d) => d.toISOString().slice(0, 10);
+const daysAgo = (n) => new Date(Date.now() - n * 864e5);
+
+// Film buatan Indonesia (bahasa asli: Indonesia) yang rilis di bioskop Indonesia dalam ~75 hari terakhir.
+async function indonesianFilms(token) {
+  const base = {
+    language: "id-ID",
+    with_original_language: "id",
+    sort_by: "popularity.desc",
+    include_adult: "false",
+    page: 1,
+  };
   let list =
+    (
+      await get(
+        "/discover/movie",
+        {
+          ...base,
+          region: "ID",
+          with_release_type: "2|3",
+          "release_date.gte": ymd(daysAgo(75)),
+          "release_date.lte": ymd(new Date()),
+        },
+        token,
+      )
+    ).results || [];
+  if (list.filter(usable).length < ID_COUNT) {
+    // rentang diperlebar kalau film Indonesia yang baru rilis sedikit
+    const more =
+      (
+        await get(
+          "/discover/movie",
+          {
+            ...base,
+            "primary_release_date.gte": ymd(daysAgo(180)),
+            "primary_release_date.lte": ymd(new Date()),
+          },
+          token,
+        )
+      ).results || [];
+    const seen = new Set(list.map((m) => m.id));
+    list = [...list, ...more.filter((m) => !seen.has(m.id))];
+  }
+  return list.filter(usable);
+}
+
+// Campuran: sekitar idCount film Indonesia + sisanya film luar negeri yang sedang tayang di Indonesia.
+export async function fetchMovies(token, count = COUNT, idCount = ID_COUNT) {
+  const local = (await indonesianFilms(token)).slice(0, idCount);
+
+  let intl =
     (
       await get(
         "/movie/now_playing",
@@ -61,16 +112,26 @@ export async function fetchMovies(token, count = COUNT) {
         token,
       )
     ).results || [];
-
-  if (list.length < count) {
+  intl = intl.filter((m) => m.original_language !== "id");
+  if (local.length + intl.filter(usable).length < count) {
     // daftar khusus Indonesia kadang pendek; lengkapi dengan daftar global
     const more =
       (await get("/movie/now_playing", { language: "id-ID", page: 1 }, token))
         .results || [];
-    const seen = new Set(list.map((m) => m.id));
-    list = [...list, ...more.filter((m) => !seen.has(m.id))];
+    const seen = new Set(intl.map((m) => m.id));
+    intl = [
+      ...intl,
+      ...more.filter((m) => !seen.has(m.id) && m.original_language !== "id"),
+    ];
   }
-  list = list.filter((m) => m.poster_path && !m.adult).slice(0, count);
+
+  const seen = new Set(local.map((m) => m.id));
+  const list = [
+    ...local,
+    ...intl
+      .filter((m) => usable(m) && !seen.has(m.id))
+      .slice(0, Math.max(0, count - local.length)),
+  ];
 
   const items = [];
   for (const m of list) {
@@ -95,6 +156,8 @@ export async function fetchMovies(token, count = COUNT) {
 
     items.push({
       tmdb_id: m.id,
+      origin:
+        (d.original_language || m.original_language) === "id" ? "ID" : "luar", // hanya untuk ringkasan di terminal
       title: d.title || m.title,
       genre: d.genres?.[0]?.name || "Film",
       duration_min: d.runtime > 0 ? d.runtime : 100,
@@ -116,6 +179,20 @@ export async function fetchMovies(token, count = COUNT) {
 const esc = (s) => `'${String(s).replaceAll("'", "''")}'`;
 const val = (v) => (v == null || v === "" ? "null" : esc(v));
 
+// Membuang film lama yang tidak ikut daftar impor ini. Jadwalnya ikut terhapus otomatis (ON DELETE CASCADE).
+// Film yang sudah pernah dipesan TIDAK disentuh, supaya tiket pengguna tetap valid.
+function cleanSql(items) {
+  const ids = items.map((m) => m.tmdb_id).join(", ");
+  return `-- Bersih-bersih (opsi --bersih): buang film lama yang tidak ada di daftar ini dan belum pernah dipesan.
+delete from movies m
+ where m.tmdb_id is not null
+   and m.tmdb_id not in (${ids})
+   and not exists (
+     select 1 from bookings b join showtimes s on s.id = b.showtime_id where s.movie_id = m.id
+   );
+
+`;
+}
 export function buildSql(items) {
   const rows = items.map((m) => {
     const [from, to] = PALETTE[m.tmdb_id % PALETTE.length];
@@ -165,9 +242,13 @@ export async function run() {
   const items = await fetchMovies(token);
   if (items.length === 0)
     throw new Error("Tidak ada film yang didapat dari TMDB.");
-  fs.writeFileSync("import.sql", buildSql(items), "utf8");
-  console.log(`Selesai: ${items.length} film ditulis ke import.sql`);
-  for (const m of items) console.log(" -", m.title);
+  const clean = process.argv.includes("--bersih");
+  fs.writeFileSync("import.sql", buildSql(items, { clean }), "utf8");
+  const nId = items.filter((m) => m.origin === "ID").length;
+  console.log(
+    `Selesai: ${items.length} film ditulis ke import.sql (${nId} film Indonesia, ${items.length - nId} film luar negeri)${clean ? " + pembersihan film lama" : ""}`,
+  );
+  for (const m of items) console.log(` - [${m.origin}] ${m.title}`);
 }
 
 // Supaya bisa diuji tanpa menjalankan jaringan sungguhan.

@@ -9,6 +9,10 @@ export const isConfigured = Boolean(url && key);
 export const supabase = createClient(
   url || "https://placeholder.supabase.co",
   key || "placeholder-key",
+  {
+    // PKCE: alur login yang lebih aman untuk aplikasi web (token tidak ditaruh di alamat halaman)
+    auth: { flowType: "pkce" },
+  },
 );
 
 // Ubah respons Supabase { data, error } menjadi data, atau lempar error.

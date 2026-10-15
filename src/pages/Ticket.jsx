@@ -2,12 +2,12 @@ import { Link, useParams } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase, unwrap } from "../lib/supabase";
 import { useAsync } from "../lib/useAsync";
-import { fmtDate, fmtTime, rupiah } from "../lib/config";
+import { cinemaLabel, fmtDate, fmtTime, rupiah } from "../lib/config";
 import { seatPrice, sortSeats } from "../lib/seats";
 import { Empty, ErrorBox, Skeleton, btnGhost } from "../components/ui";
 
 export const BOOKING_SELECT =
-  "booking_code, seat_code, customer_name, showtimes(starts_at, studio, price_regular, price_premium, movies(title))";
+  "booking_code, seat_code, customer_name, showtimes(starts_at, studio, price_regular, price_premium, movies(title), cinemas(name, city))";
 
 export default function Ticket() {
   const { code } = useParams();
@@ -51,9 +51,7 @@ export default function Ticket() {
         Pembayaran simulasi berhasil. Ini e-tiket kamu.
       </p>
 
-      <div className="print-ticket overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-900"></div>
-
-      <div className="overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-900">
+      <div className="print-ticket overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-900">
         <div className="p-5">
           <p className="text-xs uppercase tracking-widest text-amber-400">
             E-Tiket KursiKu
@@ -61,6 +59,11 @@ export default function Ticket() {
           <h1 className="mt-1 font-display text-2xl font-bold">
             {showtime.movies.title}
           </h1>
+          {showtime.cinemas && (
+            <p className="mt-1 text-sm font-medium text-amber-400">
+              {cinemaLabel(showtime)}
+            </p>
+          )}
           <p className="mt-1 text-sm capitalize text-zinc-400">
             {fmtDate(showtime.starts_at)} · {fmtTime(showtime.starts_at)} ·{" "}
             {showtime.studio}

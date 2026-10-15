@@ -12,6 +12,7 @@ import {
   COLS,
   MAX_SEATS,
   ROWS,
+  cinemaLabel,
   fmtDate,
   fmtTime,
   rupiah,
@@ -96,7 +97,7 @@ export default function Seats() {
     const showtime = unwrap(
       await supabase
         .from("showtimes")
-        .select("*, movies(title)")
+        .select("*, movies(title), cinemas(name, city)")
         .eq("id", showtimeId)
         .maybeSingle(),
     );
@@ -118,7 +119,6 @@ export default function Seats() {
       : "",
   );
 
-  // buang pilihan yang ternyata sudah terjual setelah data dimuat ulang
   // buang pilihan yang ternyata sudah terjual (mis. diambil orang lain) dan beri tahu pengguna
   useEffect(() => {
     if (!data) return;
@@ -132,9 +132,11 @@ export default function Seats() {
 
   // Realtime: setiap ada pesanan baru di jadwal ini, muat ulang denah kursi.
   // Database tetap penentu akhir lewat constraint UNIQUE, jadi ini murni soal tampilan.
+  // Fitur tambahan: kalau gagal (jaringan, websocket diblokir, dll) halaman tetap jalan tanpa realtime.
   useEffect(() => {
     let channel = null;
     try {
+      // nama unik supaya tidak bentrok dengan channel lama yang masih proses ditutup
       channel = supabase
         .channel(
           `kursi-${showtimeId}-${Math.random().toString(36).slice(2, 8)}`,
@@ -211,6 +213,11 @@ export default function Seats() {
       <h1 className="font-display text-2xl font-bold">
         {showtime.movies.title}
       </h1>
+      {showtime.cinemas && (
+        <p className="mt-1 text-sm font-medium text-amber-300">
+          {cinemaLabel(showtime)}
+        </p>
+      )}
       <p className="mt-1 text-sm capitalize text-zinc-400">
         {fmtDate(showtime.starts_at)} · {fmtTime(showtime.starts_at)} ·{" "}
         {showtime.studio}

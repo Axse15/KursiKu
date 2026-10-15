@@ -30,9 +30,41 @@ export const fmtTime = (iso) =>
   })
     .format(new Date(iso))
     .replace(".", ":");
+
+// Label skor: "★ 7.8" kalau ada nilai dari TMDB, kalau tidak pakai rating usia bawaan.
+export const scoreLabel = (m) =>
+  m.vote_average ? `★ ${Number(m.vote_average).toFixed(1)}` : m.rating;
+
 // "Hari ini · 19:45", "Besok · 13:00", atau "Sab, 17 Okt · 16:30"
 const ymd = (d) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(d);
+
+// "2026-10-15" menurut waktu Jakarta (menerima teks ISO), dipakai untuk mengelompokkan jadwal per hari
+export const dayKey = (iso) => ymd(new Date(iso));
+
+// Label kecil untuk tombol tanggal: { top: 'Hari ini' | 'Besok' | 'Sab', bottom: '17 Okt' }
+export function fmtDayChip(iso) {
+  const d = new Date(iso);
+  const key = ymd(d);
+  let top;
+  if (key === ymd(new Date())) top = "Hari ini";
+  else if (key === ymd(new Date(Date.now() + 86400000))) top = "Besok";
+  else
+    top = new Intl.DateTimeFormat("id-ID", {
+      weekday: "short",
+      timeZone: "Asia/Jakarta",
+    }).format(d);
+  const bottom = new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "short",
+    timeZone: "Asia/Jakarta",
+  }).format(d);
+  return { top, bottom };
+}
+
+// "KursiKu Dago, Bandung" (kosong kalau data bioskop tidak ikut terbaca)
+export const cinemaLabel = (showtime) =>
+  showtime?.cinemas ? `${showtime.cinemas.name}, ${showtime.cinemas.city}` : "";
 
 export function fmtWhen(iso) {
   const d = new Date(iso);
@@ -49,6 +81,3 @@ export function fmtWhen(iso) {
     }).format(d);
   return `${label} · ${fmtTime(iso)}`;
 }
-// Label skor: "★ 7.8" kalau ada nilai dari TMDB, kalau tidak pakai rating usia bawaan.
-export const scoreLabel = (m) =>
-  m.vote_average ? `★ ${Number(m.vote_average).toFixed(1)}` : m.rating;
