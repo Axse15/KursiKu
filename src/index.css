@@ -9,3 +9,15 @@
   outline: 2px solid #fbbf24;
   outline-offset: 2px;
 }
+/* Cetak tiket: latar putih dan teks hitam, karena browser biasanya tidak mencetak warna latar. */
+@media print {
+  body {
+    background: #fff !important;
+  }
+  .print-ticket,
+  .print-ticket * {
+    color: #000 !important;
+    background: #fff !important;
+    border-color: #999 !important;
+  }
+}

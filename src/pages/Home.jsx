@@ -4,6 +4,7 @@ import { supabase, unwrap } from "../lib/supabase";
 import { useAsync } from "../lib/useAsync";
 import { fmtWhen } from "../lib/config";
 import {
+  Backdrop,
   Empty,
   ErrorBox,
   Poster,
@@ -21,9 +22,10 @@ function Hero({ movie, when }) {
       }}
     >
       <Texture />
+      <Backdrop src={movie.backdrop_url} />
       <div
         aria-hidden="true"
-        className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent"
+        className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-transparent"
       />
       <div className="relative flex items-center justify-between gap-8">
         <div className="max-w-xl">
@@ -34,7 +36,7 @@ function Hero({ movie, when }) {
             {movie.title}
           </h2>
           <p className="mt-2 text-sm text-white/80">
-            {movie.genre} · {movie.duration_min} menit · {movie.rating}
+            {movie.genre} · {movie.duration_min} menit
           </p>
           <p className="mt-4 line-clamp-3 text-white/85">{movie.synopsis}</p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -60,6 +62,7 @@ function Hero({ movie, when }) {
 
 export default function Home() {
   const [genre, setGenre] = useState("Semua");
+  const [query, setQuery] = useState("");
 
   const { data, loading, error, reload } = useAsync(async () => {
     const movies = unwrap(
@@ -99,7 +102,7 @@ export default function Home() {
   if (movies.length === 0) {
     return (
       <Empty title="Belum ada film">
-        Isi data dummy lewat file <code>supabase.sql</code>.
+        Isi data lewat <code>supabase.sql</code> atau <code>import.sql</code>.
       </Empty>
     );
   }
@@ -112,8 +115,12 @@ export default function Home() {
     movies[0];
 
   const genres = ["Semua", ...new Set(movies.map((m) => m.genre))];
-  const shown =
-    genre === "Semua" ? movies : movies.filter((m) => m.genre === genre);
+  const q = query.trim().toLowerCase();
+  const shown = movies.filter(
+    (m) =>
+      (genre === "Semua" || m.genre === genre) &&
+      (!q || m.title.toLowerCase().includes(q)),
+  );
 
   return (
     <div className="space-y-10">
@@ -123,12 +130,24 @@ export default function Home() {
       />
 
       <section>
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        <h1 className="font-display text-3xl font-bold">Sedang tayang</h1>
+        <p className="mt-1 text-zinc-400">
+          Pilih film, jadwal, kursi, lalu bayar. Empat langkah saja.
+        </p>
+
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="font-display text-3xl font-bold">Sedang tayang</h1>
-            <p className="mt-1 text-zinc-400">
-              Pilih film, jadwal, kursi, lalu bayar. Empat langkah saja.
-            </p>
+            <label htmlFor="cari" className="sr-only">
+              Cari film
+            </label>
+            <input
+              id="cari"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Cari judul film…"
+              className="min-h-11 w-full min-w-64 rounded-xl border border-zinc-700 bg-zinc-900 px-4 placeholder:text-zinc-500"
+            />
           </div>
           <div
             role="group"
@@ -153,28 +172,39 @@ export default function Home() {
           </div>
         </div>
 
-        <ul className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
-          {shown.map((m) => (
-            <li key={m.id}>
-              <Link to={`/film/${m.id}`} className="group block">
-                <Poster
-                  movie={m}
-                  className="aspect-[2/3] shadow-lg shadow-black/40 transition duration-300 group-hover:-translate-y-1 group-hover:shadow-amber-400/10"
-                />
-                <p className="mt-3 text-sm text-zinc-400">
-                  {m.duration_min} menit
-                </p>
-                {next[m.id] ? (
-                  <p className="text-sm font-medium text-amber-300">
-                    {fmtWhen(next[m.id])}
+        {shown.length === 0 ? (
+          <div className="mt-6">
+            <Empty title="Tidak ada film yang cocok">
+              Coba kata kunci atau genre lain.
+            </Empty>
+          </div>
+        ) : (
+          <ul className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
+            {shown.map((m) => (
+              <li key={m.id}>
+                <Link to={`/film/${m.id}`} className="group block">
+                  <Poster
+                    movie={m}
+                    className="aspect-[2/3] shadow-lg shadow-black/40 transition duration-300 group-hover:-translate-y-1 group-hover:shadow-amber-400/10"
+                  />
+                  <p className="mt-3 line-clamp-1 text-sm font-medium text-zinc-200">
+                    {m.title}
                   </p>
-                ) : (
-                  <p className="text-sm text-zinc-500">Belum ada jadwal</p>
-                )}
-              </Link>
-            </li>
-          ))}
-        </ul>
+                  <p className="text-sm text-zinc-400">
+                    {m.duration_min} menit
+                  </p>
+                  {next[m.id] ? (
+                    <p className="text-sm font-medium text-amber-300">
+                      {fmtWhen(next[m.id])}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-zinc-500">Belum ada jadwal</p>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   );

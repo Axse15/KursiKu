@@ -119,21 +119,38 @@ export default function Seats() {
   );
 
   // buang pilihan yang ternyata sudah terjual setelah data dimuat ulang
+  // buang pilihan yang ternyata sudah terjual (mis. diambil orang lain) dan beri tahu pengguna
   useEffect(() => {
-    if (data) setSelected((sel) => sel.filter((c) => !data.taken.has(c)));
+    if (!data) return;
+    const lost = selected.filter((c) => data.taken.has(c));
+    if (lost.length > 0) {
+      setSelected((sel) => sel.filter((c) => !data.taken.has(c)));
+      setNotice(`Kursi ${lost.join(", ")} baru saja dipesan orang lain.`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
-  if (error) return <ErrorBox message={error} onRetry={reload} />;
-  if (loading && !data) return <Skeleton className="h-96" />;
-  if (!data) {
-    return (
-      <Empty title="Jadwal tidak ditemukan">
-        <Link to="/" className="underline">
-          Kembali ke beranda
-        </Link>
-      </Empty>
-    );
-  }
+  // Realtime: setiap ada pesanan baru di jadwal ini, muat ulang denah kursi.
+  // Database tetap penentu akhir lewat constraint UNIQUE, jadi ini murni soal tampilan.
+  useEffect(() => {
+    const channel = supabase
+      .channel(`kursi-${showtimeId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "bookings",
+          filter: `showtime_id=eq.${showtimeId}`,
+        },
+        () => reload(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showtimeId]);
 
   const { showtime, taken } = data;
   const total = selected.reduce((sum, c) => sum + seatPrice(c, showtime), 0);

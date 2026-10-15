@@ -1,8 +1,15 @@
 import { Link, useParams } from "react-router-dom";
 import { supabase, unwrap } from "../lib/supabase";
 import { useAsync } from "../lib/useAsync";
-import { fmtDate, fmtTime, rupiah } from "../lib/config";
-import { Empty, ErrorBox, Poster, Skeleton } from "../components/ui";
+import { fmtDate, fmtTime, rupiah, scoreLabel } from "../lib/config";
+import {
+  Backdrop,
+  Empty,
+  ErrorBox,
+  Poster,
+  Skeleton,
+  btnGhost,
+} from "../components/ui";
 
 export default function Movie() {
   const { id } = useParams();
@@ -43,6 +50,7 @@ export default function Movie() {
   }
 
   const { movie, showtimes } = data;
+  const year = movie.release_date ? movie.release_date.slice(0, 4) : null;
 
   // kelompokkan jadwal per tanggal
   const byDate = {};
@@ -53,14 +61,44 @@ export default function Movie() {
 
   return (
     <article>
+      {movie.backdrop_url && (
+        <div
+          className="relative mb-6 h-44 overflow-hidden rounded-2xl sm:h-60"
+          style={{
+            background: `linear-gradient(120deg, ${movie.poster_from}, ${movie.poster_to})`,
+          }}
+        >
+          <Backdrop src={movie.backdrop_url} />
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent"
+          />
+        </div>
+      )}
+
       <div className="flex gap-4">
-        <Poster movie={movie} className="aspect-[2/3] w-32 shrink-0 sm:w-40" />
+        <Poster
+          movie={movie}
+          showMeta={false}
+          className="aspect-[2/3] w-32 shrink-0 sm:w-40"
+        />
         <div>
           <h1 className="font-display text-3xl font-bold">{movie.title}</h1>
           <p className="mt-1 text-sm text-zinc-400">
-            {movie.genre} · {movie.duration_min} menit · {movie.rating}
+            {movie.genre} · {movie.duration_min} menit · {scoreLabel(movie)}
+            {year && ` · ${year}`}
           </p>
           <p className="mt-3 text-zinc-300">{movie.synopsis}</p>
+          {movie.trailer_key && (
+            <a
+              href={`https://www.youtube.com/watch?v=${encodeURIComponent(movie.trailer_key)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${btnGhost} mt-4`}
+            >
+              ▶ Tonton trailer
+            </a>
+          )}
         </div>
       </div>
 

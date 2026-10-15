@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { scoreLabel } from "../lib/config";
+
 export const btnPrimary =
   "inline-flex min-h-11 items-center justify-center rounded-xl bg-amber-400 px-5 font-semibold text-zinc-950 hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-40";
 
@@ -67,8 +70,28 @@ export function Texture() {
   );
 }
 
-// Poster fiktif buatan sendiri (gradasi + tekstur + huruf besar samar). Tidak memakai poster film asli.
+// Gambar latar yang menghilang sendiri kalau gagal dimuat (mis. diblokir jaringan).
+// Di bawahnya tetap ada gradasi, jadi tampilan tidak pernah rusak.
+export function Backdrop({ src }) {
+  const [broken, setBroken] = useState(false);
+  if (!src || broken) return null;
+  return (
+    <img
+      src={src}
+      alt=""
+      aria-hidden="true"
+      loading="lazy"
+      onError={() => setBroken(true)}
+      className="absolute inset-0 h-full w-full object-cover"
+    />
+  );
+}
+
+// Poster: pakai gambar dari TMDB kalau ada, kalau tidak (atau gagal dimuat) pakai poster gradasi buatan sendiri.
 export function Poster({ movie, className = "", showMeta = true }) {
+  const [broken, setBroken] = useState(false);
+  const photo = movie.poster_url && !broken;
+
   return (
     <div
       role="img"
@@ -78,34 +101,46 @@ export function Poster({ movie, className = "", showMeta = true }) {
         background: `linear-gradient(160deg, ${movie.poster_from}, ${movie.poster_to})`,
       }}
     >
-      <Texture />
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-4 -top-8 select-none font-display text-[9rem] font-bold leading-none text-white/10"
-      >
-        {movie.title[0]}
-      </span>
-      <div
-        aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 to-transparent"
-      />
-
-      {showMeta && (
+      {photo ? (
+        <img
+          src={movie.poster_url}
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          onError={() => setBroken(true)}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
         <>
-          <span className="absolute left-3 top-3 rounded-full bg-black/40 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur">
-            {movie.genre}
+          <Texture />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-4 -top-8 select-none font-display text-[9rem] font-bold leading-none text-white/10"
+          >
+            {movie.title[0]}
           </span>
-          <span className="absolute right-3 top-3 rounded-md border border-white/50 px-1.5 py-0.5 text-[11px] font-semibold text-white">
-            {movie.rating}
-          </span>
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 to-transparent"
+          />
+          <div className="absolute inset-x-0 bottom-0 p-3">
+            <span className="font-display text-lg font-bold leading-tight text-white">
+              {movie.title}
+            </span>
+          </div>
         </>
       )}
 
-      <div className="absolute inset-x-0 bottom-0 p-3">
-        <span className="font-display text-lg font-bold leading-tight text-white">
-          {movie.title}
-        </span>
-      </div>
+      {showMeta && (
+        <>
+          <span className="absolute left-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur">
+            {movie.genre}
+          </span>
+          <span className="absolute right-3 top-3 rounded-md border border-white/50 bg-black/40 px-1.5 py-0.5 text-[11px] font-semibold text-white">
+            {scoreLabel(movie)}
+          </span>
+        </>
+      )}
     </div>
   );
 }

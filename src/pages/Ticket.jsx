@@ -47,9 +47,11 @@ export default function Ticket() {
 
   return (
     <section>
-      <p className="mb-4 rounded-lg bg-emerald-950/40 p-3 text-sm text-emerald-300">
+      <p className="mb-4 rounded-lg bg-emerald-950/40 p-3 text-sm text-emerald-300 print:hidden">
         Pembayaran simulasi berhasil. Ini e-tiket kamu.
       </p>
+
+      <div className="print-ticket overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-900"></div>
 
       <div className="overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-900">
         <div className="p-5">
@@ -92,6 +94,22 @@ export default function Ticket() {
             QR berisi kode booking (dummy)
           </p>
         </div>
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-3 print:hidden">
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className={btnGhost}
+        >
+          Cetak / simpan PDF
+        </button>
+        <Link to="/" className={btnGhost}>
+          Pesan lagi
+        </Link>
+        <Link to="/riwayat" className={btnGhost}>
+          Riwayat pesanan
+        </Link>
       </div>
 
       <div className="mt-6 flex gap-3">

@@ -7,14 +7,34 @@ import Seats from "./pages/Seats";
 import Checkout from "./pages/Checkout";
 import Ticket from "./pages/Ticket";
 import History from "./pages/History";
+import { useState } from "react";
 
+// Atribusi wajib dari TMDB. Taruh logo resmi TMDB di public/tmdb-logo.svg (kalau belum ada, logo disembunyikan).
+function TmdbCredit() {
+  const [noLogo, setNoLogo] = useState(false);
+  return (
+    <p className="mt-2 flex flex-wrap items-center justify-center gap-2">
+      {!noLogo && (
+        <img
+          src="/tmdb-logo.svg"
+          alt="TMDB"
+          className="h-3"
+          onError={() => setNoLogo(true)}
+        />
+      )}
+      <span>
+        This product uses the TMDB API but is not endorsed or certified by TMDB.
+      </span>
+    </p>
+  );
+}
 function Layout({ children }) {
   // beranda dibuat lebih lebar; halaman lain (kursi, bayar, tiket) tetap sempit agar nyaman dibaca
   const width = useLocation().pathname === "/" ? "max-w-6xl" : "max-w-3xl";
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-zinc-800">
+      <header className="border-b border-zinc-800 print:hidden">
         <div
           className={`mx-auto flex ${width} items-center justify-between px-4 py-4`}
         >
@@ -37,9 +57,12 @@ function Layout({ children }) {
         {children}
       </main>
 
-      <footer className="border-t border-zinc-800 px-4 py-4 text-center text-xs text-zinc-500">
-        Aplikasi fiktif untuk tugas kuliah. Semua film dan data adalah dummy,
-        pembayaran hanya simulasi.
+      <footer className="border-t border-zinc-800 px-4 py-4 text-center text-xs text-zinc-500 print:hidden">
+        <p>
+          Bioskop fiktif untuk tugas kuliah. Jadwal, harga, dan pemesanan hanya
+          simulasi.
+        </p>
+        <TmdbCredit />
       </footer>
     </div>
   );

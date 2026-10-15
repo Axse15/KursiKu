@@ -49,3 +49,6 @@ export function fmtWhen(iso) {
     }).format(d);
   return `${label} · ${fmtTime(iso)}`;
 }
+// Label skor: "★ 7.8" kalau ada nilai dari TMDB, kalau tidak pakai rating usia bawaan.
+export const scoreLabel = (m) =>
+  m.vote_average ? `★ ${Number(m.vote_average).toFixed(1)}` : m.rating;
