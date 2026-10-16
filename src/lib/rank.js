@@ -1,8 +1,8 @@
 // Peringkat film untuk banner beranda. Murni (tanpa jaringan) supaya mudah diuji.
 //
-// Catatan jujur: "paling banyak ditonton" memakai skor POPULARITAS dari TMDB (gabungan penayangan halaman,
-// favorit, dan daftar tonton pengguna TMDB di seluruh dunia). Itu bukan jumlah tiket terjual,
-// karena KursiKu hanya simulasi dan data pesanannya terlalu sedikit untuk dijadikan peringkat.
+// Catatan jujur: "paling banyak ditonton" BUKAN jumlah tiket KursiKu (itu simulasi, datanya terlalu sedikit).
+//   - Kalau ada kolom watchers (diisi skrip impor dari API Trakt): jumlah pengguna Trakt di seluruh dunia yang menonton film itu minggu ini.
+//   - Kalau tidak ada: skor popularitas TMDB (gabungan penayangan halaman, favorit, dan daftar tonton pengguna TMDB).
 
 const num = (v) =>
   v == null || v === "" || Number.isNaN(Number(v)) ? null : Number(v);
@@ -14,7 +14,21 @@ const popOf = (m) => num(m.popularity) ?? num(m.vote_count) ?? 0;
 
 const byDesc = (key) => (a, b) => key(b) - key(a) || b.id - a.id; // seri: film yang lebih baru masuk dulu
 
+export const watchersOf = (m) => {
+  const v = num(m.watchers);
+  return v != null && v > 0 ? v : null;
+};
+
+// Ada cukup film dengan data penonton Trakt? Kalau ya, hanya film itu yang diperingkat (skala Trakt dan TMDB tidak bisa dicampur).
+export const hasWatchers = (movies, n = 3) =>
+  movies.filter((m) => watchersOf(m) != null).length >= n;
+
 export function topPopular(movies, n = 3) {
+  if (hasWatchers(movies))
+    return movies
+      .filter((m) => watchersOf(m) != null)
+      .sort(byDesc(watchersOf))
+      .slice(0, n);
   return [...movies].sort(byDesc(popOf)).slice(0, n);
 }
 

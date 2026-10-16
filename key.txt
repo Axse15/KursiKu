@@ -1,0 +1,3 @@
+Fazli15juni2005
+vwrejwubemywllezdgdn
+select refresh_showtimes(7) as jadwal_baru_dibuat;

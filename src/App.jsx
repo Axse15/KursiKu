@@ -49,7 +49,7 @@ function Layout({ children }) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-line print:hidden">
+      <header className="sm:sticky sm:top-0 z-30 border-b border-line bg-page/85 backdrop-blur print:hidden">
         <div
           className={`mx-auto flex ${width} flex-wrap items-center justify-between gap-x-4 px-4 py-1 sm:py-3`}
         >
@@ -82,15 +82,22 @@ function Layout({ children }) {
         </div>
       </header>
 
-      <main className={`mx-auto w-full ${width} flex-1 px-4 py-6`}>
+      <main className="{mx-auto w-full ${width} flex-1 px-4 py-6 sm:py-8}">
         <BackButton />
         {children}
       </main>
-
+      <p className="mt-1">
+        Data film: TMDB, OMDb (rating IMDb), dan Trakt (jumlah penonton),
+        semuanya opsional di sisi pengembang.
+      </p>
       <footer className="border-t border-line px-4 py-4 text-center text-xs text-faint print:hidden">
         <p>
           Bioskop fiktif untuk tugas kuliah. Jadwal, harga, dan pemesanan hanya
           simulasi.
+        </p>
+        <p className="mt-1">
+          Data film: TMDB, OMDb (rating IMDb), dan Trakt (jumlah penonton),
+          semuanya opsional di sisi pengembang.
         </p>
         <TmdbCredit />
       </footer>

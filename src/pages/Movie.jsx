@@ -7,10 +7,12 @@ import { dayKey, fmtDayChip, fmtTime, rupiah, scoreLabel } from "../lib/config";
 import { dealPercent, dealPrice } from "../lib/deals";
 import { rankCinemas, useUserLocation } from "../lib/geo";
 import { fmtKm } from "../lib/nearby";
+import { fmtReleaseLong, releaseInfo, untilLabel } from "../lib/release";
 import { useAuth } from "../lib/auth";
 import { useProfile } from "../lib/profile";
 import CinemaPicker from "../components/CinemaPicker";
 import NearbyCinemas from "../components/NearbyCinemas";
+import ReleaseTag from "../components/ReleaseTag";
 import TrailerModal, { isValidYoutubeKey } from "../components/TrailerModal";
 import {
   Backdrop,
@@ -39,6 +41,7 @@ export default function Movie() {
       await supabase.from("movies").select("*").eq("id", id).maybeSingle(),
     );
     if (!movie) return { movie: null, showtimes: [] };
+    // semua jadwal film ini (maks ~60 baris), disaring per bioskop di sisi browser
     const showtimes = unwrap(
       await supabase
         .from("showtimes")
@@ -71,8 +74,11 @@ export default function Movie() {
   }
 
   const { movie, showtimes } = data;
+  const rel = releaseInfo(movie);
+  const soon = rel.status === "soon";
   const year = movie.release_date ? movie.release_date.slice(0, 4) : null;
 
+  // jadwal di bioskop pilihan -> daftar hari -> kelompok per bioskop pada hari terpilih
   const list = selected
     ? showtimes.filter((s) => s.cinema_id === selected.id)
     : showtimes;
@@ -87,7 +93,7 @@ export default function Movie() {
     (byCinema[s.cinema_id] ||= { cinema: s.cinemas, items: [] }).items.push(s);
   }
 
-  // urutkan bioskop KursiKu dari yang terdekat (kalau lokasi diketahui)
+  // urutkan bioskop dari yang terdekat (kalau lokasi diketahui); yang tak punya koordinat di belakang
   const kmOf = {};
   if (geo.status === "ok")
     for (const r of rankCinemas(cinemas, geo.lat, geo.lon))
@@ -125,7 +131,10 @@ export default function Movie() {
           className="aspect-[2/3] w-32 shrink-0 sm:w-40"
         />
         <div>
-          <h1 className="font-display text-3xl font-bold">{movie.title}</h1>
+          <h1 className="font-display text-3xl font-bold tracking-tight">
+            {movie.title}
+          </h1>
+          {rel.status !== "now" && <ReleaseTag info={rel} className="mt-2" />}
           <p className="mt-1 text-sm text-muted">
             {movie.genre} · {movie.duration_min} menit{year && ` · ${year}`}
           </p>
@@ -171,134 +180,157 @@ export default function Movie() {
         />
       )}
 
-      <h2 className="mb-3 mt-8 font-display text-xl font-semibold">
-        Jadwal tayang
-      </h2>
-      <CinemaPicker className="mb-5" />
-      {!selected && list.length > 0 && (
-        <NearbyCinemas
-          geo={geo}
-          nearest={nearest}
-          onPick={() => select(nearestId)}
-        />
-      )}
-
-      {showtimes.length === 0 ? (
-        <Empty title="Belum ada jadwal">
-          Untuk pembuat web: jalankan <code>select refresh_showtimes(7);</code>{" "}
-          di Supabase SQL Editor.
-        </Empty>
-      ) : list.length === 0 ? (
-        <Empty title={`Film ini belum tayang di ${selected.name}`}>
-          <button
-            type="button"
-            onClick={() => select(null)}
-            className="underline"
-          >
-            Lihat semua bioskop
-          </button>
-        </Empty>
+      {soon ? (
+        <section
+          className="mt-8 rounded-2xl border border-accent/40 bg-panel p-5"
+          aria-labelledby="segera-info"
+        >
+          <h2 id="segera-info" className="font-display text-xl font-semibold">
+            Segera hadir
+          </h2>
+          <p className="mt-2 text-ink-2">
+            Rilis {fmtReleaseLong(rel.date)} (
+            {untilLabel(rel.days).toLowerCase()}).
+          </p>
+          <p className="mt-1 text-sm text-muted">
+            Jadwal dan tiket dibuka saat film rilis. Sementara itu, kamu bisa
+            menonton trailernya.
+          </p>
+        </section>
       ) : (
         <>
-          <div
-            role="group"
-            aria-label="Pilih tanggal"
-            className="flex gap-2 overflow-x-auto pb-1"
-          >
-            {days.map((d) => {
-              const { top, bottom } = fmtDayChip(firstOfDay[d]);
-              const active = d === activeDay;
-              const pct = dealPercent(movie.id, firstOfDay[d]);
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setDay(d)}
-                  className={`min-h-12 shrink-0 rounded-xl border px-4 py-1.5 text-center ${
-                    active
-                      ? "border-accent bg-accent text-on-accent"
-                      : "border-line-strong text-ink-2 hover:border-accent"
-                  }`}
-                >
-                  <span className="block text-xs">{top}</span>
-                  <span className="block text-sm font-semibold">{bottom}</span>
-                  {pct > 0 && (
-                    <span
-                      className={`block text-[11px] font-bold ${active ? "" : "text-accent-ink"}`}
-                    >
-                      −{pct}%
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {days.some((d) => dealPercent(movie.id, firstOfDay[d]) > 0) && (
-            <p className="mt-2 text-xs text-muted">
-              Angka −% di bawah tanggal adalah diskon film untuk hari itu.
-              Diskon berganti setiap hari.
-            </p>
+          <h2 className="mb-3 mt-8 font-display text-xl font-semibold">
+            Jadwal tayang
+          </h2>
+          <CinemaPicker className="mb-5" />
+          {!selected && list.length > 0 && (
+            <NearbyCinemas
+              geo={geo}
+              nearest={nearest}
+              onPick={() => select(nearestId)}
+            />
           )}
 
-          <div className="mt-4 space-y-4">
-            {groups.map(([cinemaId, { cinema, items }]) => (
-              <section
-                key={cinemaId}
-                className={`rounded-xl border p-4 ${cinemaId === nearestId ? "border-accent" : "border-line"}`}
+          {showtimes.length === 0 ? (
+            <Empty title="Belum ada jadwal">
+              Untuk pembuat web: jalankan{" "}
+              <code>select refresh_showtimes(7);</code> di Supabase SQL Editor.
+            </Empty>
+          ) : list.length === 0 ? (
+            <Empty title={`Film ini belum tayang di ${selected.name}`}>
+              <button
+                type="button"
+                onClick={() => select(null)}
+                className="underline"
               >
-                <h3 className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium">
-                  <span>
-                    {cinema?.name}{" "}
-                    <span className="text-sm font-normal text-muted">
-                      · {cinema?.city}
-                    </span>
-                  </span>
-                  {kmOf[cinemaId] != null && (
-                    <span className="text-xs font-normal text-muted">
-                      {fmtKm(kmOf[cinemaId])}
-                    </span>
-                  )}
-                  {cinemaId === nearestId && (
-                    <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-on-accent">
-                      Terdekat
-                    </span>
-                  )}
-                </h3>
-                <ul className="mt-3 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
-                  {items.map((s) => {
-                    const pct = dealPercent(movie.id, s.starts_at);
-                    return (
-                      <li key={s.id}>
-                        <Link
-                          to={`/pilih-kursi/${s.id}`}
-                          className="block min-h-11 rounded-xl border border-line-strong px-4 py-2 text-center hover:border-accent"
+                Lihat semua bioskop
+              </button>
+            </Empty>
+          ) : (
+            <>
+              <div
+                role="group"
+                aria-label="Pilih tanggal"
+                className="flex gap-2 overflow-x-auto pb-1"
+              >
+                {days.map((d) => {
+                  const { top, bottom } = fmtDayChip(firstOfDay[d]);
+                  const active = d === activeDay;
+                  const pct = dealPercent(movie.id, firstOfDay[d]);
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setDay(d)}
+                      className={`min-h-12 shrink-0 rounded-xl border px-4 py-1.5 text-center ${
+                        active
+                          ? "border-accent bg-accent text-on-accent"
+                          : "border-line-strong text-ink-2 hover:border-accent"
+                      }`}
+                    >
+                      <span className="block text-xs">{top}</span>
+                      <span className="block text-sm font-semibold">
+                        {bottom}
+                      </span>
+                      {pct > 0 && (
+                        <span
+                          className={`block text-[11px] font-bold ${active ? "" : "text-accent-ink"}`}
                         >
-                          <span className="block font-semibold">
-                            {fmtTime(s.starts_at)}
-                          </span>
-                          <span className="block text-xs text-muted">
-                            {s.studio}
-                          </span>
-                          {pct > 0 && (
-                            <span className="block text-xs text-faint line-through">
-                              {rupiah(s.price_regular)}
-                            </span>
-                          )}
-                          <span
-                            className={`block text-xs ${pct > 0 ? "font-semibold text-accent-ink" : "text-muted"}`}
-                          >
-                            {rupiah(dealPrice(s.price_regular, pct))}
-                          </span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ))}
-          </div>
+                          −{pct}%
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {days.some((d) => dealPercent(movie.id, firstOfDay[d]) > 0) && (
+                <p className="mt-2 text-xs text-muted">
+                  Angka −% di bawah tanggal adalah diskon film untuk hari itu.
+                  Diskon berganti setiap hari.
+                </p>
+              )}
+
+              <div className="mt-4 space-y-4">
+                {groups.map(([cinemaId, { cinema, items }]) => (
+                  <section
+                    key={cinemaId}
+                    className={`rounded-xl border p-4 ${cinemaId === nearestId ? "border-accent" : "border-line"}`}
+                  >
+                    <h3 className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium">
+                      <span>
+                        {cinema?.name}{" "}
+                        <span className="text-sm font-normal text-muted">
+                          · {cinema?.city}
+                        </span>
+                      </span>
+                      {kmOf[cinemaId] != null && (
+                        <span className="text-xs font-normal text-muted">
+                          {fmtKm(kmOf[cinemaId])}
+                        </span>
+                      )}
+                      {cinemaId === nearestId && (
+                        <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-on-accent">
+                          Terdekat
+                        </span>
+                      )}
+                    </h3>
+                    <ul className="mt-3 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+                      {items.map((s) => {
+                        const pct = dealPercent(movie.id, s.starts_at);
+                        return (
+                          <li key={s.id}>
+                            <Link
+                              to={`/pilih-kursi/${s.id}`}
+                              className="block min-h-11 rounded-xl border border-line-strong px-4 py-2 text-center hover:border-accent"
+                            >
+                              <span className="block font-semibold">
+                                {fmtTime(s.starts_at)}
+                              </span>
+                              <span className="block text-xs text-muted">
+                                {s.studio}
+                              </span>
+                              {pct > 0 && (
+                                <span className="block text-xs text-faint line-through">
+                                  {rupiah(s.price_regular)}
+                                </span>
+                              )}
+                              <span
+                                className={`block text-xs ${pct > 0 ? "font-semibold text-accent-ink" : "text-muted"}`}
+                              >
+                                {rupiah(dealPrice(s.price_regular, pct))}
+                              </span>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            </>
+          )}
         </>
       )}
     </article>

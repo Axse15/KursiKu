@@ -103,3 +103,26 @@ body {
     border-color: #999 !important;
   }
 }
+/* Banner beranda: slide bertumpuk di satu sel grid, hanya yang aktif terlihat (yang lain tidak bisa difokus). */
+.hero-slide {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.6s ease,
+    visibility 0s linear 0.6s;
+}
+.hero-slide[data-active="true"] {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 0.6s ease,
+    visibility 0s;
+}
+@keyframes hero-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}

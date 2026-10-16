@@ -10,7 +10,7 @@ export const wibDay = (startsAt) =>
     .toISOString()
     .slice(0, 10);
 
-function hash32(str) {
+export function hash32(str) {
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) {
     h ^= str.charCodeAt(i);
