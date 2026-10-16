@@ -126,12 +126,30 @@ export default function Checkout() {
       .eq("code", code)
       .eq("active", true)
       .maybeSingle();
+    // Kode sekali pakai dan hanya terbuka di hari tertentu: keputusannya diambil database (promo_status, supabase-v8.sql)
+    const status = data
+      ? await supabase.rpc("promo_status", { p_code: code })
+      : null;
     setPromoBusy(false);
-    if (promoError) {
+    const failure = promoError || status?.error;
+    if (failure) {
+      setPromo(null);
       setPromoMsg({
         ok: false,
-        text: "Kode promo belum bisa diperiksa: " + promoError.message,
+        text: "Kode promo belum bisa diperiksa: " + failure.message,
       });
+      return;
+    }
+    const state = status?.data;
+    const refused =
+      state === "used"
+        ? "Kode ini sudah pernah kamu pakai. Setiap kode hanya bisa dipakai sekali per akun."
+        : state === "closed"
+          ? "Kode ini tidak berlaku hari ini. Kode promo hanya terbuka di hari-hari tertentu."
+          : null;
+    if (refused) {
+      setPromo(null);
+      setPromoMsg({ ok: false, text: refused });
       return;
     }
     const res = applyPromo(data, ctx);
@@ -144,7 +162,7 @@ export default function Checkout() {
     setPromoInput(code);
     setPromoMsg({
       ok: true,
-      text: `${data.title}: hemat ${rupiah(res.discount)}.`,
+      text: `${data.title}: hemat ${rupiah(res.discount)}. Kode ini terpakai saat pembayaran berhasil.`,
     });
   }
 
@@ -190,8 +208,21 @@ export default function Checkout() {
 
     if (insertError) {
       setPaying(false);
-      if (insertError.code === "23505") setConflict(true);
-      else if (insertError.code === "42501")
+      if (insertError.code === "23505")
+        setConflict(true); // unique violation
+      else if (/promo_used|promo_closed/.test(insertError.message || "")) {
+        // dijaga database: kode sudah terpakai (mis. di tab lain) atau harinya sudah lewat. Tidak ada kursi yang tersimpan.
+        const used = /promo_used/.test(insertError.message);
+        setPromo(null);
+        setPromoMsg(null);
+        setPromoInput("");
+        setFormError(
+          (used
+            ? "Kode promo ini sudah pernah kamu pakai."
+            : "Kode promo ini sudah tidak berlaku hari ini.") +
+            " Total dikembalikan ke harga normal. Periksa lagi lalu bayar.",
+        );
+      } else if (insertError.code === "42501")
         setFormError(
           "Sesi login kamu berakhir atau tidak sah. Masuk lagi lalu coba bayar ulang.",
         );
@@ -354,7 +385,7 @@ export default function Checkout() {
             autoCapitalize="characters"
             autoComplete="off"
             spellCheck={false}
-            placeholder="Contoh: NONTONBERDUA"
+            placeholder="Masukkan kode promo"
             aria-describedby="promo-info"
             className="min-h-11 min-w-0 flex-1 rounded-xl border border-line-strong bg-panel px-3 font-mono disabled:opacity-60"
           />
@@ -382,11 +413,11 @@ export default function Checkout() {
             promoMsg.text
           ) : (
             <>
-              Lihat daftar kode di{" "}
+              Kode hari ini ada di{" "}
               <Link to="/promo" className="underline">
                 halaman promo
               </Link>
-              .
+              . Satu kode hanya bisa dipakai sekali.
             </>
           )}
         </p>

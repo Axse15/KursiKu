@@ -211,19 +211,27 @@ export default function Promo() {
 
       <section aria-labelledby="promo-judul">
         <h2 id="promo-judul" className="font-display text-xl font-bold">
-          Promo yang berlaku
+          Kode promo hari ini
         </h2>
+        <p className="mt-1 text-sm text-muted">
+          Kode hanya muncul di hari-hari tertentu dan berlaku sampai pukul 23.59
+          WIB. Setiap kode hanya bisa dipakai sekali per akun; setelah dipakai,
+          kode hilang dari daftar ini.
+        </p>
         {error ? (
           <div className="mt-3">
             <ErrorBox
-              message={`Promo gagal dimuat: ${error}. Pastikan file supabase-v4.sql sudah dijalankan.`}
+              message={`Kode promo gagal dimuat: ${error}. Pastikan file supabase-v8.sql sudah dijalankan.`}
             />
           </div>
         ) : loading ? (
           <Skeleton className="mt-3 h-40" />
         ) : promos.length === 0 ? (
           <div className="mt-3">
-            <Empty title="Belum ada promo">Cek lagi nanti.</Empty>
+            <Empty title="Tidak ada kode promo yang bisa dipakai hari ini">
+              Belum ada kode yang terbuka, atau semuanya sudah kamu pakai. Cek
+              lagi besok.
+            </Empty>
           </div>
         ) : (
           <ul className="mt-3 grid gap-4 sm:grid-cols-2">
@@ -246,11 +254,14 @@ export default function Promo() {
                     <li key={t}>{t}</li>
                   ))}
                 </ul>
-                <p className="mt-4 text-sm text-muted">
-                  Kode:{" "}
-                  <span className="rounded bg-raised px-2 py-1 font-mono text-ink">
-                    {p.code}
+                <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+                  <span>
+                    Kode:{" "}
+                    <span className="rounded bg-raised px-2 py-1 font-mono text-ink">
+                      {p.code}
+                    </span>
                   </span>
+                  <span className="text-xs text-faint">Sekali pakai</span>
                 </p>
               </li>
             ))}
@@ -258,7 +269,8 @@ export default function Promo() {
         )}
         <p className="mt-3 text-sm text-muted">
           Cara pakai: pilih kursi, lalu ketik kodenya di halaman bayar. Satu
-          pesanan hanya bisa memakai satu kode.
+          pesanan hanya bisa memakai satu kode, dan kode baru terpakai kalau
+          pembayarannya berhasil.
         </p>
         <Link to="/" className={`${btnPrimary} mt-4`}>
           Cari film sekarang
