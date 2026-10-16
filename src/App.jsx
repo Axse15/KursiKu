@@ -90,6 +90,17 @@ function Layout({ children }) {
         Data film: TMDB, OMDb (rating IMDb), dan Trakt (jumlah penonton),
         semuanya opsional di sisi pengembang.
       </p>
+      <footer className="border-t border-line px-4 py-4 text-center text-xs text-faint print:hidden">
+        <p>
+          Bioskop fiktif untuk tugas kuliah. Jadwal, harga, dan pemesanan hanya
+          simulasi.
+        </p>
+        <p className="mt-1">
+          Data film: TMDB, OMDb (rating IMDb), dan Trakt (jumlah penonton),
+          semuanya opsional di sisi pengembang.
+        </p>
+        <TmdbCredit />
+      </footer>
     </div>
   );
 }
