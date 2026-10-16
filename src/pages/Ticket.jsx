@@ -9,7 +9,7 @@ import { usePromoMap } from "../lib/usePromos";
 import { Empty, ErrorBox, Skeleton, btnGhost } from "../components/ui";
 
 export const BOOKING_SELECT =
-  "booking_code, seat_code, customer_name, promo_code, deal_percent, showtimes(starts_at, studio, price_regular, price_premium, movies(title), cinemas(name, city))";
+  "booking_code, seat_code, customer_name, promo_code, deal_percent, created_at, showtimes(starts_at, studio, price_regular, price_premium, movies(title), cinemas(name, city))";
 
 export default function Ticket() {
   const { code } = useParams();

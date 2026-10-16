@@ -180,6 +180,14 @@ export default function Checkout() {
       setFormError("Isi nama panggilan dulu.");
       return;
     }
+    // kode sudah diketik tapi belum ditekan "Pakai": jangan diam-diam bayar tanpa potongan
+    if (!promo && normalizeCode(promoInput)) {
+      setFormError(
+        'Kode promo belum dipakai. Tekan "Pakai" dulu supaya potongannya masuk, atau kosongkan kolom kodenya.',
+      );
+      document.getElementById("promo")?.focus();
+      return;
+    }
     if (promo && !applyPromo(promo, ctx).ok) {
       setPromo(null);
       setPromoMsg(null);
@@ -384,6 +392,13 @@ export default function Checkout() {
             maxLength={20}
             autoCapitalize="characters"
             autoComplete="off"
+            onKeyDown={(e) => {
+              // Enter di kolom ini = "Pakai", BUKAN membayar (form ini akan mengirim pesanan kalau Enter dibiarkan)
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (!promo && !promoBusy) applyCode();
+              }
+            }}
             spellCheck={false}
             placeholder="Masukkan kode promo"
             aria-describedby="promo-info"

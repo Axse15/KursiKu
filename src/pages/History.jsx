@@ -3,7 +3,7 @@ import { supabase, unwrap } from "../lib/supabase";
 import { useAsync } from "../lib/useAsync";
 import { useAuth } from "../lib/auth";
 import { getCodes } from "../lib/booking";
-import { cinemaLabel, fmtDate, fmtTime } from "../lib/config";
+import { cinemaLabel, fmtDate, fmtTime, fmtWhen } from "../lib/config";
 import { sortSeats } from "../lib/seats";
 import { Empty, ErrorBox, Skeleton } from "../components/ui";
 import { BOOKING_SELECT } from "./Ticket";
@@ -31,17 +31,23 @@ export default function History() {
     else return [];
     const rows = unwrap(await q);
 
-    // satu pesanan = banyak baris kursi; gabungkan per kode booking, yang terbaru di atas
+    // satu pesanan = banyak baris kursi; gabungkan per kode booking.
+    // Urutan: yang TERAKHIR DIBELI di atas (bukan menurut jam tayang), supaya pesanan yang baru dibayar langsung kelihatan.
     const map = {};
     for (const r of rows) {
       (map[r.booking_code] ||= {
         code: r.booking_code,
         showtime: r.showtimes,
         seats: [],
+        boughtAt: r.created_at,
+        promo: r.promo_code,
       }).seats.push(r.seat_code);
     }
+    const at = (o) => (o.boughtAt ? Date.parse(o.boughtAt) : 0);
     return Object.values(map).sort(
-      (a, b) => new Date(b.showtime.starts_at) - new Date(a.showtime.starts_at),
+      (a, b) =>
+        at(b) - at(a) ||
+        new Date(b.showtime.starts_at) - new Date(a.showtime.starts_at),
     );
   }, [authLoading, user?.id]);
 
@@ -82,6 +88,16 @@ export default function History() {
                 Kursi {sortSeats(o.seats).join(", ")} ·{" "}
                 <span className="font-mono text-muted">{o.code}</span>
               </p>
+              {(o.boughtAt || o.promo) && (
+                <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-faint">
+                  {o.boughtAt && <span>Dibeli {fmtWhen(o.boughtAt)}</span>}
+                  {o.promo && (
+                    <span className="rounded bg-raised px-1.5 py-0.5 font-mono text-ink-2">
+                      Promo {o.promo}
+                    </span>
+                  )}
+                </p>
+              )}
             </Link>
           </li>
         ))}
@@ -93,7 +109,7 @@ export default function History() {
       <h1 className="mb-2 font-display text-2xl font-bold">Riwayat pesanan</h1>
       <p className="mb-4 text-sm text-muted">
         {user ? (
-          "Menampilkan pesanan akun Google kamu, ditambah tiket lama yang dibuat di browser ini sebelum login diwajibkan."
+          "Menampilkan pesanan akun Google kamu, yang terakhir dibeli di paling atas, ditambah tiket lama yang dibuat di browser ini sebelum login diwajibkan."
         ) : (
           <>
             Pemesanan sekarang memakai akun Google, jadi riwayat lengkapmu ada
