@@ -49,14 +49,32 @@ function Layout({ children }) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sm:sticky sm:top-0 z-30 border-b border-line bg-page/85 backdrop-blur print:hidden">
+      <header className="sm:sticky sm:top-0 z-30 border-b border-dashed border-line-strong bg-page/85 backdrop-blur print:hidden">
         <div
           className={`mx-auto flex ${width} flex-wrap items-center justify-between gap-x-4 px-4 py-1 sm:py-3`}
         >
           <Link
             to="/"
-            className="flex min-h-11 items-center font-display text-2xl font-bold tracking-tight text-accent-ink"
+            className="flex min-h-11 items-center gap-2 font-display text-2xl font-bold tracking-tight text-ink"
           >
+            {/* tanda karcis: persegi panjang dengan dua takik di sisi kiri-kanan */}
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 28 20"
+              className="h-5 w-7 shrink-0 text-accent"
+            >
+              <path
+                fill="currentColor"
+                d="M3 0h22a3 3 0 0 1 3 3v3.2a3.8 3.8 0 0 0 0 7.6V17a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3v-3.2a3.8 3.8 0 0 0 0-7.6V3a3 3 0 0 1 3-3Z"
+              />
+              <path
+                fill="none"
+                style={{ stroke: "var(--color-page)" }}
+                strokeWidth="1.4"
+                strokeDasharray="2 2.2"
+                d="M9.5 2v16"
+              />
+            </svg>
             KursiKu
           </Link>
           <nav
@@ -86,7 +104,7 @@ function Layout({ children }) {
         <BackButton />
         {children}
       </main>
-      <footer className="border-t border-line px-4 py-4 text-center text-xs text-faint print:hidden">
+      <footer className="border-t border-dashed border-line-strong px-4 py-4 text-center text-xs text-faint print:hidden">
         <p>
           Bioskop fiktif untuk tugas kuliah. Jadwal, harga, dan pemesanan hanya
           simulasi.

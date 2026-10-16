@@ -1,60 +1,66 @@
 @import "tailwindcss";
 
 /*
+  Tema "Beludru": ruang bioskop yang gelap (hitam keanggur-angguran) dengan aksen merah koral seperti kertas karcis.
   Warna dipakai lewat nama peran (bg-page, text-muted, border-line, ...), bukan angka zinc/amber,
   supaya tema terang cukup mengganti nilai variabel di blok [data-theme="light"] di bawah.
-  Tema gelap adalah bawaan. Kontras teks sudah dicek >= 4.5:1 di kedua tema.
+  Tema gelap adalah bawaan. Kontras teks sudah dihitung >= 4.5:1 di kedua tema.
 */
 @theme {
-  --font-sans: "Inter", system-ui, sans-serif;
-  --font-display: "Outfit", system-ui, sans-serif;
+  --font-sans: "Instrument Sans", system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
 
-  --color-page: #09090b;
-  --color-panel: #18181b;
-  --color-raised: #27272a;
-  --color-line: #27272a;
-  --color-line-strong: #3f3f46;
-  --color-line-hover: #71717a;
+  /* sudut lebih rapat dari bawaan Tailwind: bentuknya lebih dekat ke karcis daripada ke kartu aplikasi */
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.75rem;
 
-  --color-ink: #f4f4f5;
-  --color-ink-2: #d4d4d8;
-  --color-muted: #a1a1aa;
-  --color-faint: #94949e;
+  --color-page: #130b0e;
+  --color-panel: #1c1216;
+  --color-raised: #2a1c21;
+  --color-line: #35252b;
+  --color-line-strong: #4e3a42;
+  --color-line-hover: #8f7880;
 
-  --color-accent: #fbbf24;
-  --color-accent-hover: #fcd34d;
-  --color-accent-ink: #fcd34d;
-  --color-on-accent: #09090b;
+  --color-ink: #f8f0eb;
+  --color-ink-2: #dfd2cd;
+  --color-muted: #bcaaab;
+  --color-faint: #a4929a;
 
-  --color-warn-bg: rgb(69 26 3 / 0.3);
-  --color-warn-line: rgb(245 158 11 / 0.4);
-  --color-danger-bg: rgb(69 10 10 / 0.45);
-  --color-danger-line: rgb(239 68 68 / 0.4);
+  --color-accent: #ff6f4f;
+  --color-accent-hover: #ff8a6e;
+  --color-accent-ink: #ff9a80;
+  --color-on-accent: #1a0b08;
+
+  --color-warn-bg: rgb(80 30 10 / 0.35);
+  --color-warn-line: rgb(255 140 90 / 0.4);
+  --color-danger-bg: rgb(80 12 24 / 0.5);
+  --color-danger-line: rgb(248 113 113 / 0.4);
   --color-danger: #fca5a5;
-  --color-ok-bg: rgb(2 44 34 / 0.5);
+  --color-ok-bg: rgb(4 47 36 / 0.5);
   --color-ok: #6ee7b7;
 }
 
 :root[data-theme="light"] {
-  --color-page: #fafafa;
+  --color-page: #f7f4f5;
   --color-panel: #ffffff;
-  --color-raised: #f0f0f2;
-  --color-line: #e4e4e7;
-  --color-line-strong: #c9c9d0;
-  --color-line-hover: #8a8a94;
+  --color-raised: #f0eaec;
+  --color-line: #e6dde0;
+  --color-line-strong: #cdbfc4;
+  --color-line-hover: #8c7a82;
 
-  --color-ink: #18181b;
-  --color-ink-2: #3f3f46;
-  --color-muted: #52525b;
-  --color-faint: #666670;
+  --color-ink: #1d1215;
+  --color-ink-2: #43343a;
+  --color-muted: #5b4a51;
+  --color-faint: #6d5c63;
 
-  --color-accent: #fbbf24;
-  --color-accent-hover: #f59e0b;
-  --color-accent-ink: #92400e;
-  --color-on-accent: #09090b;
+  --color-accent: #ff6f4f;
+  --color-accent-hover: #f45a38;
+  --color-accent-ink: #b0300f;
+  --color-on-accent: #1a0b08;
 
-  --color-warn-bg: #fffbeb;
-  --color-warn-line: #fcd34d;
+  --color-warn-bg: #fff4ed;
+  --color-warn-line: #ffb48f;
   --color-danger-bg: #fef2f2;
   --color-danger-line: #fca5a5;
   --color-danger: #b91c1c;
@@ -73,6 +79,13 @@
 body {
   background-color: var(--color-page);
   color: var(--color-ink);
+}
+
+/* judul tidak menyisakan satu kata sendirian di baris terakhir */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
 }
 
 :focus-visible {
