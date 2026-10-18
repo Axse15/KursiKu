@@ -6,7 +6,13 @@ import {
   fetchNearby,
   fmtKm,
 } from "../lib/nearby";
-import { Empty, ErrorBox, Skeleton, btnPrimary } from "../components/ui";
+import {
+  Empty,
+  ErrorBox,
+  Skeleton,
+  btnPrimary,
+  fieldCls,
+} from "../components/ui";
 
 const GEO_ERRORS = {
   1: "Izin lokasi ditolak. Pilih kota di bawah, atau izinkan lokasi di pengaturan browser.",
@@ -14,6 +20,7 @@ const GEO_ERRORS = {
   3: "Menentukan lokasi terlalu lama. Pilih kota di bawah.",
 };
 
+// Penanda proses: server peta publik bisa lambat, jadi pengguna diberi tahu bahwa ini normal dan sudah berapa lama.
 function SearchNote() {
   const [sec, setSec] = useState(0);
   useEffect(() => {
@@ -31,7 +38,7 @@ function SearchNote() {
 
 export default function Nearby() {
   const [radius, setRadius] = useState(5);
-  const [origin, setOrigin] = useState(null);
+  const [origin, setOrigin] = useState(null); // { lat, lon, label }
   const [state, setState] = useState({
     status: "idle",
     items: [],
@@ -40,7 +47,7 @@ export default function Nearby() {
   });
   const [geoMsg, setGeoMsg] = useState("");
   const [locating, setLocating] = useState(false);
-  const run = useRef(0);
+  const run = useRef(0); // nomor permintaan terbaru; jawaban yang terlambat dari permintaan lama diabaikan
   const abortRef = useRef(null);
 
   useEffect(() => {
@@ -74,6 +81,7 @@ export default function Nearby() {
       return;
     }
     setLocating(true);
+    // Kalau pertanyaan izin dibiarkan tanpa dijawab, browser tidak pernah memanggil balik. Beri batas waktu sendiri.
     let settled = false;
     const timer = setTimeout(() => {
       if (settled) return;
@@ -110,8 +118,7 @@ export default function Nearby() {
     if (c) setOrigin({ lat: c.lat, lon: c.lon, label: `pusat kota ${c.name}` });
   }
 
-  const field =
-    "mt-1 min-h-11 w-full rounded-xl border border-line-strong bg-panel px-3";
+  const field = `mt-1 ${fieldCls}`;
   const cityValue =
     origin && CITIES.some((c) => origin.label === `pusat kota ${c.name}`)
       ? origin.label.replace("pusat kota ", "")
@@ -119,15 +126,17 @@ export default function Nearby() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-3xl font-bold">Bioskop terdekat</h1>
-        <p className="mt-1 text-muted">
+      <div className="border-t-4 border-rule pt-3">
+        <h1 className="font-display text-5xl font-black uppercase leading-[0.9] tracking-tight sm:text-7xl">
+          Bioskop terdekat
+        </h1>
+        <p className="mt-2 max-w-2xl text-muted">
           Cari bioskop sungguhan di sekitarmu (CGV, XXI, dan lainnya), lengkap
           dengan jarak dan rute.
         </p>
       </div>
 
-      <div className="grid gap-3 rounded-2xl border border-line bg-panel p-4 sm:grid-cols-[auto_1fr_auto] sm:items-end">
+      <div className="grid gap-3 rounded-xl border-2 border-line-strong bg-panel p-4 sm:grid-cols-[auto_1fr_auto] sm:items-end">
         <button
           type="button"
           onClick={useMyLocation}
@@ -137,7 +146,7 @@ export default function Nearby() {
           {locating ? "Mencari lokasi…" : "📍 Pakai lokasiku"}
         </button>
         <div>
-          <label htmlFor="kota" className="text-sm font-medium text-ink-2">
+          <label htmlFor="kota" className="font-mono text-xs text-ink-2">
             atau pilih kota
           </label>
           <select
@@ -157,7 +166,7 @@ export default function Nearby() {
           </select>
         </div>
         <div>
-          <label htmlFor="radius" className="text-sm font-medium text-ink-2">
+          <label htmlFor="radius" className="font-mono text-xs text-ink-2">
             Radius
           </label>
           <select
@@ -178,7 +187,7 @@ export default function Nearby() {
       {geoMsg && (
         <p
           role="alert"
-          className="rounded-xl border border-warn-line bg-warn-bg p-3 text-sm"
+          className="rounded-xl border-2 border-warn-line bg-warn-bg p-3 text-sm"
         >
           {geoMsg}
         </p>
@@ -208,7 +217,7 @@ export default function Nearby() {
 
       {state.status === "done" && origin && (
         <section aria-live="polite">
-          <p className="text-sm text-muted">
+          <p className="font-mono text-sm text-muted">
             {state.items.length} bioskop dalam {radius} km dari {origin.label}
           </p>
           {state.items.length === 0 ? (
@@ -223,15 +232,15 @@ export default function Nearby() {
               {state.items.map((b) => (
                 <li
                   key={b.id}
-                  className="rounded-2xl border border-line bg-panel p-4"
+                  className="rounded-xl border-2 border-line-strong bg-panel p-4"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-display text-lg font-semibold">
+                      <p className="font-display text-2xl font-extrabold uppercase leading-none tracking-tight">
                         {b.name}
                       </p>
                       {b.brand && (
-                        <span className="mt-1 inline-block rounded border border-line-strong px-1.5 text-xs font-semibold">
+                        <span className="mt-1 inline-block rounded-sm border-2 border-line-strong px-1.5 font-mono text-xs">
                           {b.brand}
                         </span>
                       )}
@@ -244,16 +253,16 @@ export default function Nearby() {
                         </p>
                       )}
                     </div>
-                    <p className="shrink-0 font-display text-lg font-bold text-accent-ink">
+                    <p className="shrink-0 font-display text-3xl font-black leading-none text-accent-ink">
                       {fmtKm(b.km)}
                     </p>
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                  <div className="mt-3 flex flex-wrap gap-x-4 text-sm font-semibold">
                     <a
                       href={directionsUrl(b)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-accent-ink underline"
+                      className="inline-flex min-h-11 items-center text-accent-ink underline"
                     >
                       Rute di Google Maps
                     </a>
@@ -262,7 +271,7 @@ export default function Nearby() {
                         href={b.website}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-accent-ink underline"
+                        className="inline-flex min-h-11 items-center text-accent-ink underline"
                       >
                         Situs bioskop
                       </a>

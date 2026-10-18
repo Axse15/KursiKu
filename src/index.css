@@ -1,68 +1,99 @@
 @import "tailwindcss";
 
 /*
-  Tema "Beludru": ruang bioskop yang gelap (hitam keanggur-angguran) dengan aksen merah koral seperti kertas karcis.
-  Warna dipakai lewat nama peran (bg-page, text-muted, border-line, ...), bukan angka zinc/amber,
+  Tema "Neobrutalism lembut + bento": bingkai tebal 2px, bayangan keras tapi kecil, warna pastel,
+  dan tata letak kotak-kotak (bento) dengan ukuran berbeda. Judul memakai Bricolage Grotesque, isi memakai Instrument Sans.
+  "Lembut" artinya: sudut membulat, warna pastel (bukan neon), bayangan 3px, tanpa miring-miring atau huruf kapital semua.
+
+  Warna dipakai lewat nama peran (bg-page, text-muted, border-edge, bg-tile-yellow, ...), bukan angka warna,
   supaya tema terang cukup mengganti nilai variabel di blok [data-theme="light"] di bawah.
   Tema gelap adalah bawaan. Kontras teks sudah dihitung >= 4.5:1 di kedua tema.
 */
 @theme {
-  --font-sans: "Instrument Sans", system-ui, sans-serif;
-  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-sans:
+    "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display:
+    "Bricolage Grotesque", "Instrument Sans", system-ui, -apple-system,
+    "Segoe UI", sans-serif;
 
-  /* sudut lebih rapat dari bawaan Tailwind: bentuknya lebih dekat ke karcis daripada ke kartu aplikasi */
-  --radius-lg: 0.375rem;
-  --radius-xl: 0.5rem;
-  --radius-2xl: 0.75rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.75rem;
 
-  --color-page: #130b0e;
-  --color-panel: #1c1216;
-  --color-raised: #2a1c21;
-  --color-line: #35252b;
-  --color-line-strong: #4e3a42;
-  --color-line-hover: #8f7880;
+  --color-page: #13111f;
+  --color-panel: #1e1b33;
+  --color-raised: #2a2647;
+  --color-line: #38335c;
+  --color-line-strong: #4d4780;
+  --color-line-hover: #7a73b5;
+  --color-field: #8e88bd;
+  --color-edge: #e9e3f7; /* bingkai tebal kartu */
 
-  --color-ink: #f8f0eb;
-  --color-ink-2: #dfd2cd;
-  --color-muted: #bcaaab;
-  --color-faint: #a4929a;
+  --color-ink: #f6f2e8;
+  --color-ink-2: #ddd8ea;
+  --color-muted: #b0abc9;
+  --color-faint: #9c97bb;
 
-  --color-accent: #ff6f4f;
-  --color-accent-hover: #ff8a6e;
-  --color-accent-ink: #ff9a80;
-  --color-on-accent: #1a0b08;
+  --color-accent: #ff6b86;
+  --color-accent-hover: #ff4f70;
+  --color-accent-ink: #ff8fa4;
+  --color-on-accent: #14122b;
 
-  --color-warn-bg: rgb(80 30 10 / 0.35);
-  --color-warn-line: rgb(255 140 90 / 0.4);
-  --color-danger-bg: rgb(80 12 24 / 0.5);
-  --color-danger-line: rgb(248 113 113 / 0.4);
+  /* petak pastel bento (gelap: versi redup, teks tetap terang) */
+  --color-tile-yellow: #4a3f16;
+  --color-tile-pink: #4d2036;
+  --color-tile-blue: #1c3752;
+  --color-tile-green: #1d4130;
+  --color-tile-lilac: #372b5e;
+  --color-tile-orange: #4b2f18;
+
+  --color-warn-bg: rgb(251 191 36 / 0.1);
+  --color-warn-line: rgb(251 191 36 / 0.5);
+  --color-warn: #fcd34d;
+  --color-danger-bg: rgb(127 29 29 / 0.3);
+  --color-danger-line: rgb(248 113 113 / 0.5);
   --color-danger: #fca5a5;
   --color-ok-bg: rgb(4 47 36 / 0.5);
   --color-ok: #6ee7b7;
+
+  --shadow-nb: 3px 3px 0 0 var(--color-edge);
+  --shadow-nb-lg: 5px 5px 0 0 var(--color-edge);
 }
 
 :root[data-theme="light"] {
-  --color-page: #f7f4f5;
+  --color-page: #f7f3ea;
   --color-panel: #ffffff;
-  --color-raised: #f0eaec;
-  --color-line: #e6dde0;
-  --color-line-strong: #cdbfc4;
-  --color-line-hover: #8c7a82;
+  --color-raised: #efe9db;
+  --color-line: #ddd5c2;
+  --color-line-strong: #b9ae96;
+  --color-line-hover: #8c8167;
+  --color-field: #14122b;
+  --color-edge: #14122b;
 
-  --color-ink: #1d1215;
-  --color-ink-2: #43343a;
-  --color-muted: #5b4a51;
-  --color-faint: #6d5c63;
+  --color-ink: #14122b;
+  --color-ink-2: #2d2a47;
+  --color-muted: #55516f;
+  --color-faint: #67637f;
 
-  --color-accent: #ff6f4f;
-  --color-accent-hover: #f45a38;
-  --color-accent-ink: #b0300f;
-  --color-on-accent: #1a0b08;
+  --color-accent: #ff6b86;
+  --color-accent-hover: #ff4f70;
+  --color-accent-ink: #bf0f3d;
+  --color-on-accent: #14122b;
 
-  --color-warn-bg: #fff4ed;
-  --color-warn-line: #ffb48f;
+  --color-tile-yellow: #ffe27a;
+  --color-tile-pink: #ffc2d4;
+  --color-tile-blue: #b9dcff;
+  --color-tile-green: #bff0c8;
+  --color-tile-lilac: #d8c8ff;
+  --color-tile-orange: #ffd0a0;
+
+  --color-warn-bg: #fffbeb;
+  --color-warn-line: #d97706;
+  --color-warn: #92400e;
   --color-danger-bg: #fef2f2;
-  --color-danger-line: #fca5a5;
+  --color-danger-line: #dc2626;
   --color-danger: #b91c1c;
   --color-ok-bg: #ecfdf5;
   --color-ok: #047857;
@@ -79,18 +110,59 @@
 body {
   background-color: var(--color-page);
   color: var(--color-ink);
+  font-feature-settings: "tnum" 0;
 }
 
 /* judul tidak menyisakan satu kata sendirian di baris terakhir */
 h1,
 h2,
 h3 {
+  font-family: var(--font-display);
   text-wrap: balance;
+}
+
+/* ---- Komponen neobrutalism lembut ---- */
+/* kartu: bingkai 2px + bayangan keras kecil */
+@utility nb-card {
+  border: 2px solid var(--color-edge);
+  border-radius: var(--radius-2xl);
+  background-color: var(--color-panel);
+  box-shadow: var(--shadow-nb);
+}
+/* bingkai saja, tanpa bayangan (untuk isi di dalam kartu, kolom isian) */
+@utility nb-flat {
+  border: 2px solid var(--color-edge);
+  border-radius: var(--radius-xl);
+  background-color: var(--color-panel);
+}
+/* kartu/tombol yang bisa diklik: naik sedikit saat disentuh, "menekan" saat diklik */
+@utility nb-lift {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+  &:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-nb-lg);
+  }
+  &:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 0 var(--color-edge);
+  }
 }
 
 :focus-visible {
   outline: 2px solid var(--color-accent-ink);
   outline-offset: 2px;
+}
+/* di atas foto/gradasi gelap (banner, kepala halaman film), cincin fokus memakai warna putih */
+.on-photo :focus-visible {
+  outline-color: #fff;
+}
+
+/* Angka tabel: jam, harga, kode booking selalu sejajar */
+.tnum {
+  font-variant-numeric: tabular-nums;
 }
 
 /* tidak ada animasi untuk pengguna yang memintanya */
@@ -111,11 +183,14 @@ h3 {
   }
   .print-ticket,
   .print-ticket * {
+    border-radius: 0 !important;
     color: #000 !important;
     background: #fff !important;
     border-color: #999 !important;
+    box-shadow: none !important;
   }
 }
+
 /* Banner beranda: slide bertumpuk di satu sel grid, hanya yang aktif terlihat (yang lain tidak bisa difokus). */
 .hero-slide {
   opacity: 0;

@@ -26,8 +26,16 @@ import {
 } from "../lib/seats";
 import { dealPercent, dealPrice } from "../lib/deals";
 import { useAuth } from "../lib/auth";
-import { Empty, ErrorBox, Skeleton, btnPrimary } from "../components/ui";
+import {
+  Empty,
+  ErrorBox,
+  Skeleton,
+  Sticker,
+  btnGhost,
+  btnPrimary,
+} from "../components/ui";
 
+// Tamu boleh memilih kursi, tapi membayar butuh login. Dikasih tahu dari awal supaya tidak kaget di langkah berikutnya.
 function LoginNote() {
   const { user, loading } = useAuth();
   if (loading || user) return null;
@@ -51,10 +59,10 @@ function Seat({ code, status, onToggle }) {
 
   const styles = {
     free: premium
-      ? "border-warn-line text-ink-2 hover:bg-accent/20"
-      : "border-line-hover text-ink-2 hover:bg-raised",
-    selected: "border-accent bg-accent font-bold text-on-accent",
-    taken: "cursor-not-allowed border-line bg-raised text-faint",
+      ? "rounded-t-xl rounded-b-sm border-accent-ink bg-panel text-ink-2 hover:bg-raised"
+      : "rounded-md border-field bg-panel text-ink-2 hover:bg-raised",
+    selected: `${premium ? "rounded-t-xl rounded-b-sm" : "rounded-md"} border-edge bg-accent font-bold text-on-accent`,
+    taken: `${premium ? "rounded-t-xl rounded-b-sm" : "rounded-md"} cursor-not-allowed border-line bg-raised text-faint`,
   };
 
   return (
@@ -64,7 +72,7 @@ function Seat({ code, status, onToggle }) {
       aria-pressed={status === "selected"}
       disabled={status === "taken"}
       onClick={() => onToggle(code)}
-      className={`flex h-6 w-6 items-center justify-center rounded-md border text-[10px] sm:h-8 sm:w-8 sm:text-xs ${styles[status]}`}
+      className={`flex h-6 w-6 items-center justify-center border-2 text-[10px] font-medium transition-colors sm:h-8 sm:w-8 sm:text-xs ${styles[status]}`}
     >
       {status === "taken" ? "✕" : status === "selected" ? "✓" : code.slice(1)}
     </button>
@@ -74,18 +82,21 @@ function Seat({ code, status, onToggle }) {
 function Legend() {
   const item = "flex items-center gap-2 text-xs text-muted";
   const box =
-    "flex h-5 w-5 items-center justify-center rounded border text-[10px]";
+    "flex h-5 w-5 items-center justify-center rounded-sm border-2 text-[10px]";
   return (
     <ul className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2">
       <li className={item}>
-        <span className={`${box} border-line-hover`}>1</span>Reguler
+        <span className={`${box} border-field bg-panel`}>1</span>Reguler
       </li>
       <li className={item}>
-        <span className={`${box} border-warn-line`}>1</span>Premium
+        <span className={`${box} rounded-t-lg border-accent-ink bg-panel`}>
+          1
+        </span>
+        Premium
       </li>
       <li className={item}>
         <span
-          className={`${box} border-accent bg-accent font-bold text-on-accent`}
+          className={`${box} border-edge bg-accent font-bold text-on-accent`}
         >
           ✓
         </span>
@@ -130,6 +141,7 @@ export default function Seats() {
       : "",
   );
 
+  // buang pilihan yang ternyata sudah terjual (mis. diambil orang lain) dan beri tahu pengguna
   useEffect(() => {
     if (!data) return;
     const lost = selected.filter((c) => data.taken.has(c));
@@ -140,9 +152,13 @@ export default function Seats() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
+  // Realtime: setiap ada pesanan baru di jadwal ini, muat ulang denah kursi.
+  // Database tetap penentu akhir lewat constraint UNIQUE, jadi ini murni soal tampilan.
+  // Fitur tambahan: kalau gagal (jaringan, websocket diblokir, dll) halaman tetap jalan tanpa realtime.
   useEffect(() => {
     let channel = null;
     try {
+      // nama unik supaya tidak bentrok dengan channel lama yang masih proses ditutup
       channel = supabase
         .channel(
           `kursi-${showtimeId}-${Math.random().toString(36).slice(2, 8)}`,
@@ -176,7 +192,7 @@ export default function Seats() {
   if (!data) {
     return (
       <Empty title="Jadwal tidak ditemukan">
-        <Link to="/" className="underline">
+        <Link to="/" className="font-semibold text-accent-ink underline">
           Kembali ke beranda
         </Link>
       </Empty>
@@ -184,7 +200,7 @@ export default function Seats() {
   }
 
   const { showtime, taken } = data;
-  const pct = dealPercent(showtime.movie_id, showtime.starts_at);
+  const pct = dealPercent(showtime.movie_id, showtime.starts_at); // diskon film untuk hari tayang ini
   const total = selected.reduce(
     (sum, c) => sum + seatPrice(c, showtime, pct),
     0,
@@ -220,31 +236,33 @@ export default function Seats() {
 
   return (
     <section>
-      <h1 className="font-display text-2xl font-bold">
-        {showtime.movies.title}
-      </h1>
-      {showtime.cinemas && (
-        <p className="mt-1 text-sm font-medium text-accent-ink">
-          {cinemaLabel(showtime)}
+      <div>
+        <h1 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+          {showtime.movies.title}
+        </h1>
+        {showtime.cinemas && (
+          <p className="mt-2 font-semibold text-accent-ink">
+            {cinemaLabel(showtime)}
+          </p>
+        )}
+        <p className="mt-1 text-sm capitalize text-muted">
+          {fmtDate(showtime.starts_at)} · {fmtTime(showtime.starts_at)} ·{" "}
+          {showtime.studio}
         </p>
-      )}
-      <p className="mt-1 text-sm capitalize text-muted">
-        {fmtDate(showtime.starts_at)} · {fmtTime(showtime.starts_at)} ·{" "}
-        {showtime.studio}
-      </p>
-      {pct > 0 && (
-        <p className="mt-2 inline-block rounded-lg bg-warn-bg px-3 py-1.5 text-sm font-medium text-accent-ink">
-          Diskon film {pct}% berlaku untuk jadwal ini
-        </p>
-      )}
+        {pct > 0 && (
+          <p className="mt-3">
+            <Sticker>Diskon film {pct}% berlaku untuk jadwal ini</Sticker>
+          </p>
+        )}
+      </div>
 
-      <div className="mt-5 flex flex-wrap items-end gap-3 rounded-xl border border-line p-3">
+      <div className="mt-5 flex flex-wrap items-end gap-3 nb-card p-3">
         <label className="text-sm text-ink-2">
           Jumlah tiket
           <select
             value={qty}
             onChange={(e) => setQty(Number(e.target.value))}
-            className="ml-2 min-h-10 rounded-lg border border-line-strong bg-panel px-2"
+            className="ml-2 min-h-10 rounded-xl border-2 border-edge bg-panel px-2"
           >
             {Array.from({ length: MAX_SEATS }, (_, i) => i + 1).map((n) => (
               <option key={n} value={n}>
@@ -253,18 +271,17 @@ export default function Seats() {
             ))}
           </select>
         </label>
-        <button
-          type="button"
-          onClick={pickBest}
-          className="min-h-10 rounded-lg border border-accent px-4 text-sm font-medium text-accent-ink hover:bg-accent/10"
-        >
+        <button type="button" onClick={pickBest} className={`${btnGhost} px-4`}>
           Pilihkan kursi terbaik
         </button>
       </div>
 
       <div className="mt-8" role="group" aria-label="Denah kursi">
-        <div className="mx-auto mb-1 h-1.5 w-3/4 rounded-full bg-accent/70 shadow-[0_0_30px_rgba(251,191,36,0.5)]" />
-        <p className="mb-6 text-center text-xs tracking-[0.3em] text-faint">
+        <div
+          aria-hidden="true"
+          className="mx-auto mb-1 h-1.5 w-3/4 rounded-full bg-gradient-to-r from-transparent via-accent to-transparent shadow-[0_8px_30px_rgba(255,107,134,0.5)]"
+        />
+        <p className="mb-6 mt-3 text-center text-xs font-bold tracking-[0.3em] text-muted">
           LAYAR
         </p>
 
@@ -302,7 +319,7 @@ export default function Seats() {
           </div>
         </div>
         <Legend />
-        <p className="mt-2 text-center text-xs text-faint">
+        <p className="tnum mt-2 text-center text-xs text-faint">
           Reguler {pct > 0 && <s>{rupiah(showtime.price_regular)}</s>}{" "}
           {rupiah(dealPrice(showtime.price_regular, pct))} · Premium (baris F-H){" "}
           {pct > 0 && <s>{rupiah(showtime.price_premium)}</s>}{" "}
@@ -313,13 +330,13 @@ export default function Seats() {
       {notice && (
         <p
           role="alert"
-          className="mt-4 rounded-lg bg-warn-bg p-3 text-sm text-accent-ink"
+          className="mt-4 rounded-xl border-2 border-warn-line bg-warn-bg p-3 text-sm font-medium text-warn"
         >
           {notice}
         </p>
       )}
 
-      <div className="sticky bottom-0 -mx-4 mt-8 border-t border-line bg-page/95 p-4">
+      <div className="sticky bottom-0 -mx-4 mt-8 border-t-2 border-edge bg-page/95 p-4 backdrop-blur-md">
         <div className="flex items-center justify-between gap-4">
           <div className="text-sm">
             <p className="text-muted">
@@ -327,7 +344,9 @@ export default function Seats() {
                 ? "Belum ada kursi dipilih"
                 : `Kursi: ${sortSeats(selected).join(", ")}`}
             </p>
-            <p className="font-display text-lg font-bold">{rupiah(total)}</p>
+            <p className="tnum text-2xl font-extrabold leading-tight">
+              {rupiah(total)}
+            </p>
           </div>
           <button
             type="button"

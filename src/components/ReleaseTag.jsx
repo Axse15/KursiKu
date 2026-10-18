@@ -1,16 +1,18 @@
 import { fmtReleaseShort } from "../lib/release";
+import { Sticker } from "./ui";
 
 // Penanda rilis di halaman film / banner. onDark = dipakai di atas gambar gelap (warna tetap, tidak ikut tema).
 export default function ReleaseTag({ info, onDark = false, className = "" }) {
-  const base = `inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${className}`;
   if (info.status === "new")
-    return (
-      <span className={`${base} bg-accent text-on-accent`}>Baru rilis</span>
-    );
+    return <Sticker className={className}>Baru rilis</Sticker>;
   if (info.status === "soon") {
     return (
       <span
-        className={`${base} border ${onDark ? "border-amber-300 text-amber-300" : "border-accent-ink text-accent-ink"}`}
+        className={`inline-flex items-center rounded-lg border-2 px-2 py-0.5 text-xs font-bold ${
+          onDark
+            ? "border-white text-white"
+            : "border-edge bg-tile-lilac text-ink"
+        } ${className}`}
       >
         Segera hadir · {fmtReleaseShort(info.date)}
       </span>

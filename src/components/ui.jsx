@@ -1,17 +1,82 @@
 import { useState } from "react";
 import { scoreLabel } from "../lib/config";
 
+// Tombol utama: warna aksen, bingkai tebal, bayangan keras kecil. "Naik" saat disentuh dan "menekan" saat diklik.
 export const btnPrimary =
-  "inline-flex min-h-11 items-center justify-center rounded-xl bg-accent px-5 font-semibold text-on-accent hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40";
+  "nb-lift inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border-2 border-edge bg-accent px-5 text-sm font-bold text-on-accent shadow-nb hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none";
 
 export const btnGhost =
-  "inline-flex min-h-11 items-center justify-center rounded-xl border border-line-strong px-5 font-medium text-ink hover:border-accent";
+  "nb-lift inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border-2 border-edge bg-panel px-5 text-sm font-bold text-ink shadow-nb hover:bg-raised disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none";
+
+// Kotak isian: bingkai 2px seperti kartu
+export const fieldCls =
+  "min-h-11 w-full rounded-xl border-2 border-edge bg-panel px-3 text-sm text-ink placeholder:text-faint focus-visible:shadow-nb";
+
+// Warna petak bento (nilai sebenarnya ada di index.css, berganti otomatis di tema gelap)
+export const TONES = {
+  yellow: "bg-tile-yellow",
+  pink: "bg-tile-pink",
+  blue: "bg-tile-blue",
+  green: "bg-tile-green",
+  lilac: "bg-tile-lilac",
+  orange: "bg-tile-orange",
+  plain: "bg-panel",
+};
+
+// Lencana kecil bermakna khusus (diskon, label rilis): selalu warna aksen
+export function Sticker({ children, className = "" }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-lg border-2 border-edge bg-accent px-2 py-0.5 text-xs font-bold leading-tight text-on-accent ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+// Penanda kecil berwarna pastel (merek bioskop, format studio, genre)
+export function Chip({ tone = "plain", children, className = "", title }) {
+  return (
+    <span
+      title={title}
+      className={`inline-flex items-center rounded-lg border-2 border-edge px-2 py-0.5 text-xs font-bold leading-tight text-ink ${TONES[tone] || TONES.plain} ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+// Judul bagian. Level h2 kecuali ditentukan lain.
+export function SectionTitle({
+  id,
+  level = 2,
+  children,
+  sub = null,
+  aside = null,
+  className = "",
+}) {
+  const H = `h${level}`;
+  return (
+    <div className={`mb-5 ${className}`}>
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+        <H
+          id={id}
+          className="text-2xl font-extrabold tracking-tight sm:text-3xl"
+        >
+          {children}
+        </H>
+        {aside}
+      </div>
+      {sub && <p className="mt-1.5 text-sm text-muted">{sub}</p>}
+    </div>
+  );
+}
 
 export function Skeleton({ className = "" }) {
   return (
     <div
       aria-hidden="true"
-      className={`animate-pulse rounded-xl bg-raised ${className}`}
+      className={`animate-pulse rounded-2xl border-2 border-line bg-raised ${className}`}
     />
   );
 }
@@ -20,14 +85,14 @@ export function ErrorBox({ message, onRetry }) {
   return (
     <div
       role="alert"
-      className="rounded-xl border border-danger-line bg-danger-bg p-4 text-sm"
+      className="rounded-2xl border-2 border-danger-line bg-danger-bg p-4 text-sm"
     >
-      <p className="font-medium text-danger">Terjadi kesalahan</p>
+      <p className="font-semibold text-danger">Terjadi kesalahan</p>
       <p className="mt-1 text-ink-2">{message}</p>
       {onRetry && (
         <button
           onClick={onRetry}
-          className="mt-3 min-h-10 rounded-lg bg-ink px-4 font-medium text-page"
+          className="nb-lift mt-3 min-h-10 rounded-xl border-2 border-edge bg-ink px-4 text-sm font-bold text-page"
         >
           Coba lagi
         </button>
@@ -38,35 +103,26 @@ export function ErrorBox({ message, onRetry }) {
 
 export function Empty({ title, children }) {
   return (
-    <div className="rounded-xl border border-dashed border-line-strong p-8 text-center">
-      <p className="font-display text-lg font-semibold">{title}</p>
+    <div className="nb-card p-8 text-center sm:p-10">
+      <p className="font-display text-xl font-extrabold tracking-tight">
+        {title}
+      </p>
       <div className="mt-2 text-sm text-muted">{children}</div>
     </div>
   );
 }
 
-// Tekstur butiran film (noise SVG buatan sendiri, bukan gambar dari luar).
-const NOISE =
-  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")";
-
-// Cahaya + butiran film. Dipakai di poster dan hero supaya tidak terlihat datar.
+// Cahaya lembut di poster pengganti dan hero, supaya gradasinya tidak terlihat datar.
 export function Texture() {
   return (
-    <>
-      <div
-        aria-hidden="true"
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(circle at 25% 15%, rgba(255,255,255,0.25), transparent 55%)",
-        }}
-      />
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 opacity-30 mix-blend-overlay"
-        style={{ backgroundImage: NOISE }}
-      />
-    </>
+    <div
+      aria-hidden="true"
+      className="absolute inset-0"
+      style={{
+        background:
+          "radial-gradient(circle at 25% 15%, rgba(255,255,255,0.22), transparent 55%)",
+      }}
+    />
   );
 }
 
@@ -93,6 +149,7 @@ export function Poster({
   className = "",
   showMeta = true,
   compact = false,
+  framed = true,
 }) {
   const [broken, setBroken] = useState(false);
   const photo = movie.poster_url && !broken;
@@ -101,7 +158,7 @@ export function Poster({
     <div
       role="img"
       aria-label={`Poster ${movie.title}`}
-      className={`relative overflow-hidden rounded-2xl ${className}`}
+      className={`relative overflow-hidden rounded-xl ${framed ? "border-2 border-edge" : ""} ${className}`}
       style={{
         background: `linear-gradient(160deg, ${movie.poster_from}, ${movie.poster_to})`,
       }}
@@ -120,7 +177,7 @@ export function Poster({
           <Texture />
           <span
             aria-hidden="true"
-            className={`pointer-events-none absolute select-none font-display font-bold leading-none text-white/10 ${compact ? "-right-1 -top-1 text-4xl" : "-right-4 -top-8 text-[9rem]"}`}
+            className={`pointer-events-none absolute select-none font-display font-black leading-none text-white/10 ${compact ? "-right-1 -top-1 text-5xl" : "-right-3 -top-6 text-[11rem]"}`}
           >
             {movie.title[0]}
           </span>
@@ -130,7 +187,7 @@ export function Poster({
           />
           {!compact && (
             <div className="absolute inset-x-0 bottom-0 p-3">
-              <span className="font-display text-lg font-bold leading-tight text-white">
+              <span className="font-display text-xl font-extrabold leading-tight tracking-tight text-white">
                 {movie.title}
               </span>
             </div>
@@ -140,10 +197,10 @@ export function Poster({
 
       {showMeta && (
         <>
-          <span className="absolute left-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur">
+          <span className="absolute left-3 top-3 rounded-md bg-black/60 px-2 py-1 text-xs font-medium text-white backdrop-blur">
             {movie.genre}
           </span>
-          <span className="absolute right-3 top-3 rounded-md border border-white/50 bg-black/40 px-1.5 py-0.5 text-[11px] font-semibold text-white">
+          <span className="absolute right-3 top-3 rounded-md bg-black/60 px-2 py-1 text-xs font-semibold text-white backdrop-blur">
             {scoreLabel(movie)}
           </span>
         </>

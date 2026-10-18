@@ -39,7 +39,7 @@ export function ThemeProvider({ children }) {
     document.documentElement.dataset.theme = theme;
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta)
-      meta.setAttribute("content", theme === "light" ? "#fafafa" : "#09090b");
+      meta.setAttribute("content", theme === "light" ? "#f7f3ea" : "#13111f");
   }, [theme]);
 
   // sebelum pengguna memilih sendiri, tema mengikuti perangkat

@@ -38,14 +38,14 @@ export default function Ticket() {
     return (
       <Empty title="Tiket tidak ditemukan">
         Periksa kembali kode booking kamu.{" "}
-        <Link to="/" className="underline">
+        <Link to="/" className="font-semibold text-accent-ink underline">
           Ke beranda
         </Link>
       </Empty>
     );
   }
 
-  if (promoCode && !promoMap) return <Skeleton className="h-96" />;
+  if (promoCode && !promoMap) return <Skeleton className="h-96" />; // tunggu data promo supaya total tidak sempat tampil tanpa potongan
 
   const showtime = rows[0].showtimes;
   const seats = sortSeats(rows.map((r) => r.seat_code));
@@ -59,47 +59,47 @@ export default function Ticket() {
 
   return (
     <section>
-      <p className="mb-4 rounded-lg bg-ok-bg p-3 text-sm text-ok print:hidden">
+      <p className="mb-6 rounded-xl border-2 border-ok/40 bg-ok-bg p-3 text-sm font-medium text-ok print:hidden">
         Pembayaran simulasi berhasil. Ini e-tiket kamu.
       </p>
 
-      <div className="print-ticket overflow-hidden rounded-2xl border border-line-strong bg-panel">
-        <div className="p-5">
-          <p className="text-xs uppercase tracking-widest text-accent-ink">
+      <div className="print-ticket mx-auto max-w-3xl overflow-hidden nb-card md:flex">
+        <div className="p-6 md:flex-1 md:p-8">
+          <p className="text-sm font-semibold text-accent-ink">
             E-Tiket KursiKu
           </p>
-          <h1 className="mt-1 font-display text-2xl font-bold">
+          <h1 className="mt-2 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
             {showtime.movies.title}
           </h1>
           {showtime.cinemas && (
-            <p className="mt-1 text-sm font-medium text-accent-ink">
-              {cinemaLabel(showtime)}
-            </p>
+            <p className="mt-3 font-semibold">{cinemaLabel(showtime)}</p>
           )}
           <p className="mt-1 text-sm capitalize text-muted">
             {fmtDate(showtime.starts_at)} · {fmtTime(showtime.starts_at)} ·{" "}
             {showtime.studio}
           </p>
 
-          <dl className="mt-5 grid grid-cols-2 gap-4 text-sm">
+          <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-5 border-t border-line pt-5 text-sm">
             <div>
-              <dt className="text-faint">Kursi</dt>
-              <dd className="font-semibold">{seats.join(", ")}</dd>
+              <dt className="text-xs text-muted">Kursi</dt>
+              <dd className="text-2xl font-extrabold leading-tight text-accent-ink">
+                {seats.join(", ")}
+              </dd>
             </div>
             <div>
-              <dt className="text-faint">Atas nama</dt>
-              <dd className="font-semibold">{rows[0].customer_name}</dd>
+              <dt className="text-xs text-muted">Atas nama</dt>
+              <dd className="text-lg font-semibold">{rows[0].customer_name}</dd>
             </div>
             <div>
-              <dt className="text-faint">Total</dt>
-              <dd className="font-semibold">{rupiah(total)}</dd>
+              <dt className="text-xs text-muted">Total</dt>
+              <dd className="tnum text-lg font-semibold">{rupiah(total)}</dd>
               {dealDiscount > 0 && (
-                <dd className="text-xs text-muted">
+                <dd className="tnum text-xs text-muted">
                   Diskon film {dealPercent}% − {rupiah(dealDiscount)}
                 </dd>
               )}
               {discount > 0 && (
-                <dd className="text-xs text-muted">
+                <dd className="tnum text-xs text-muted">
                   Promo {promoCode} − {rupiah(discount)}
                 </dd>
               )}
@@ -108,23 +108,25 @@ export default function Ticket() {
               )}
             </div>
             <div>
-              <dt className="text-faint">Kode booking</dt>
-              <dd className="font-mono font-semibold">{code}</dd>
+              <dt className="text-xs text-muted">Kode booking</dt>
+              <dd className="tnum text-lg font-semibold tracking-wide">
+                {code}
+              </dd>
             </div>
           </dl>
         </div>
 
-        <div className="flex flex-col items-center border-t border-dashed border-line-hover p-5">
-          <div className="rounded-xl bg-white p-3">
-            <QRCodeSVG value={code} size={152} />
+        <div className="flex flex-col items-center justify-center border-t border-line bg-raised p-6 md:w-56 md:shrink-0 md:border-l md:border-t-0">
+          <div className="rounded-xl bg-white p-3 shadow-sm ring-1 ring-black/5">
+            <QRCodeSVG value={code} size={136} />
           </div>
-          <p className="mt-2 text-xs text-faint">
+          <p className="mt-3 text-center text-xs text-faint">
             QR berisi kode booking (dummy)
           </p>
         </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-3 print:hidden">
+      <div className="mx-auto mt-8 flex max-w-3xl flex-wrap gap-3 print:hidden">
         <button
           type="button"
           onClick={() => window.print()}

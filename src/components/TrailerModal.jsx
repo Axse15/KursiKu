@@ -51,7 +51,7 @@ export default function TrailerModal({ videoKey, title, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#05061a]/90 p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose(); // klik area gelap = tutup
       }}
@@ -64,20 +64,20 @@ export default function TrailerModal({ videoKey, title, onClose }) {
         className="w-full max-w-3xl"
       >
         <div className="mb-2 flex items-center justify-between gap-4">
-          <p className="line-clamp-1 font-display text-lg font-semibold text-white">
+          <p className="line-clamp-1 font-display text-2xl font-extrabold uppercase tracking-tight text-white">
             Trailer · {title}
           </p>
           <button
             ref={closeRef}
             type="button"
             onClick={onClose}
-            className="min-h-11 shrink-0 rounded-xl border border-line-hover px-4 text-sm text-white hover:border-accent"
+            className="min-h-11 shrink-0 rounded-xl border-2 border-white/70 px-4 text-sm font-semibold text-white hover:border-accent hover:text-accent"
           >
             Tutup ✕
           </button>
         </div>
 
-        <div className="relative aspect-video overflow-hidden rounded-xl bg-black">
+        <div className="relative aspect-video overflow-hidden rounded-xl border-4 border-accent bg-black">
           <iframe
             src={`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
             title={`Trailer ${title}`}

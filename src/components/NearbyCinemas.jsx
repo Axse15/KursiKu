@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { directionsUrl, fetchNearby, fmtKm } from "../lib/nearby";
+import CinemaTags from "./CinemaTags";
 
 // Bioskop SUNGGUHAN di sekitar pengguna (CGV, XXI, dll.) dari OpenStreetMap lewat Overpass.
 // Hanya info lokasi + rute. Jadwal dan tiketnya tidak tersedia di KursiKu (tidak ada API publik resmi untuk itu).
@@ -86,7 +87,7 @@ function RealList({ lat, lon }) {
       <p className="text-muted">
         Tidak ada bioskop tercatat dalam {state.radius} km. Data peta bisa
         kurang lengkap.{" "}
-        <Link to="/terdekat" className="text-accent-ink underline">
+        <Link to="/bioskop" className="text-accent-ink underline">
           Coba pilih kota lain
         </Link>
       </p>
@@ -111,11 +112,7 @@ function RealList({ lat, lon }) {
             <div className="min-w-0">
               <p className="flex flex-wrap items-center gap-x-2">
                 <span className="font-medium">{b.name}</span>
-                {b.brand && (
-                  <span className="rounded border border-line-strong px-1.5 text-xs font-semibold">
-                    {b.brand}
-                  </span>
-                )}
+                <CinemaTags brand={b.brand} formats={b.formats} />
               </p>
               {b.address && <p className="text-xs text-muted">{b.address}</p>}
               <a
@@ -127,7 +124,7 @@ function RealList({ lat, lon }) {
                 Rute di Google Maps
               </a>
             </div>
-            <p className="shrink-0 pt-0.5 font-semibold text-accent-ink">
+            <p className="tnum shrink-0 pt-0.5 font-semibold text-accent-ink">
               {fmtKm(b.km)}
             </p>
           </li>
@@ -135,7 +132,7 @@ function RealList({ lat, lon }) {
       </ol>
       {state.items.length > SHOW && (
         <Link
-          to="/terdekat"
+          to="/bioskop"
           className="inline-flex min-h-11 items-center text-accent-ink underline"
         >
           Lihat semua {state.items.length} bioskop
@@ -147,7 +144,7 @@ function RealList({ lat, lon }) {
 
 // geo = hasil useUserLocation; nearest = { cinema, km } cabang KursiKu terdekat (untuk pesan tiket)
 export default function NearbyCinemas({ geo, nearest, onPick }) {
-  const box = "mb-4 rounded-xl border border-line bg-panel p-3 text-sm";
+  const box = "mb-4 nb-card p-4 text-sm";
 
   if (geo.status === "locating")
     return (
@@ -184,7 +181,7 @@ export default function NearbyCinemas({ geo, nearest, onPick }) {
           coba lagi
         </button>
         . Atau{" "}
-        <Link to="/terdekat" className="text-accent-ink underline">
+        <Link to="/bioskop" className="text-accent-ink underline">
           pilih kota manual
         </Link>
         .
@@ -197,7 +194,7 @@ export default function NearbyCinemas({ geo, nearest, onPick }) {
   const lon = Math.round(geo.lon * 1000) / 1000;
 
   return (
-    <div className={`${box} space-y-3 border-accent/60`}>
+    <div className={`${box} space-y-3`}>
       <RealList lat={lat} lon={lon} />
 
       <div className="border-t border-line pt-3">
@@ -225,7 +222,7 @@ export default function NearbyCinemas({ geo, nearest, onPick }) {
         )}
       </div>
 
-      <p className="text-xs text-faint">
+      <p className="text-xs text-muted">
         Data bioskop: © kontributor OpenStreetMap (bisa kurang lengkap).
         Lokasimu (dibulatkan) dikirim ke server peta hanya untuk pencarian ini
         dan tidak disimpan KursiKu.

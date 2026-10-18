@@ -8,7 +8,13 @@ import { releaseInfo } from "../lib/release";
 import { collectSaleFilms } from "../lib/saleFilms";
 import { usePromos } from "../lib/usePromos";
 import MovieCard from "../components/MovieCard";
-import { Empty, ErrorBox, Skeleton, btnPrimary } from "../components/ui";
+import {
+  Empty,
+  ErrorBox,
+  SectionTitle,
+  Skeleton,
+  btnPrimary,
+} from "../components/ui";
 
 const WINDOW_MS = 3 * 86400000; // sama dengan beranda: 3 hari ke depan
 const GRID =
@@ -60,21 +66,22 @@ export default function Promo() {
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="font-display text-3xl font-bold">Harga & promo</h1>
-        <p className="mt-1 text-muted">
+        <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+          Harga &amp; promo
+        </h1>
+        <p className="mt-1 text-sm text-muted">
           Semua harga dan promo di sini fiktif. Tidak ada uang sungguhan yang
           diproses.
         </p>
       </div>
 
       <section aria-labelledby="film-diskon-judul">
-        <h2 id="film-diskon-judul" className="font-display text-xl font-bold">
+        <SectionTitle
+          id="film-diskon-judul"
+          sub="Diskon film berganti setiap hari dan berlaku otomatis, tanpa kode. Harga di bawah sudah termasuk potongan."
+        >
           Film yang lagi promo
-        </h2>
-        <p className="mt-1 text-sm text-muted">
-          Diskon film berganti setiap hari dan berlaku otomatis, tanpa kode.
-          Harga di bawah sudah termasuk potongan.
-        </p>
+        </SectionTitle>
         {sale.error ? (
           <div className="mt-3">
             <ErrorBox
@@ -97,7 +104,10 @@ export default function Promo() {
               return (
                 <div className="mt-3">
                   <Empty title="Belum ada film diskon dalam 3 hari ke depan">
-                    <Link to="/" className="underline">
+                    <Link
+                      to="/"
+                      className="font-semibold text-accent-ink underline"
+                    >
                       Lihat semua film
                     </Link>
                   </Empty>
@@ -105,17 +115,17 @@ export default function Promo() {
               );
             }
             return (
-              <div className="mt-4 space-y-8">
+              <div className="space-y-10">
                 {visible.map((g) => {
                   const chip = fmtDayChip(g.at);
                   return (
                     <div key={g.day}>
-                      <h3 className="mb-3 font-display text-lg font-semibold">
+                      <h3 className="mb-4 text-lg font-bold tracking-tight">
                         {chip.top === "Hari ini" || chip.top === "Besok"
                           ? `${chip.top} · `
                           : ""}
                         {fmtDate(g.at)}
-                        <span className="ml-2 text-sm font-normal text-muted">
+                        <span className="ml-3 text-sm font-normal text-muted">
                           {g.items.length} film
                         </span>
                       </h3>
@@ -154,9 +164,7 @@ export default function Promo() {
       </section>
 
       <section aria-labelledby="harga-judul">
-        <h2 id="harga-judul" className="font-display text-xl font-bold">
-          Daftar harga tiket
-        </h2>
+        <SectionTitle id="harga-judul">Daftar harga tiket</SectionTitle>
         {cinemaError ? (
           <div className="mt-3">
             <ErrorBox message={cinemaError} />
@@ -164,21 +172,21 @@ export default function Promo() {
         ) : cinemaLoading && cinemas.length === 0 ? (
           <Skeleton className="mt-3 h-40" />
         ) : (
-          <div className="mt-3 overflow-x-auto rounded-xl border border-line">
+          <div className="overflow-x-auto nb-card">
             <table className="w-full min-w-[30rem] text-left text-sm">
               <caption className="sr-only">Harga tiket per bioskop</caption>
-              <thead className="bg-raised text-muted">
+              <thead className="bg-raised text-ink-2">
                 <tr>
-                  <th scope="col" className="px-4 py-3 font-medium">
+                  <th scope="col" className="px-4 py-3 text-xs font-semibold">
                     Bioskop
                   </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
+                  <th scope="col" className="px-4 py-3 text-xs font-semibold">
                     Reguler (A–E)
                   </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
+                  <th scope="col" className="px-4 py-3 text-xs font-semibold">
                     Premium (F–H)
                   </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
+                  <th scope="col" className="px-4 py-3 text-xs font-semibold">
                     Sabtu & Minggu
                   </th>
                 </tr>
@@ -186,15 +194,19 @@ export default function Promo() {
               <tbody className="divide-y divide-line">
                 {cinemas.map((c) => (
                   <tr key={c.id}>
-                    <th scope="row" className="px-4 py-3 font-medium">
+                    <th scope="row" className="px-4 py-3 font-semibold">
                       {c.name}
                       <span className="block text-xs font-normal text-faint">
                         {c.city}
                       </span>
                     </th>
-                    <td className="px-4 py-3">{rupiah(c.price_regular)}</td>
-                    <td className="px-4 py-3">{rupiah(c.price_premium)}</td>
-                    <td className="px-4 py-3 text-muted">
+                    <td className="tnum px-4 py-3">
+                      {rupiah(c.price_regular)}
+                    </td>
+                    <td className="tnum px-4 py-3">
+                      {rupiah(c.price_premium)}
+                    </td>
+                    <td className="tnum px-4 py-3 text-muted">
                       + {rupiah(10000)} per kursi
                     </td>
                   </tr>
@@ -210,14 +222,12 @@ export default function Promo() {
       </section>
 
       <section aria-labelledby="promo-judul">
-        <h2 id="promo-judul" className="font-display text-xl font-bold">
+        <SectionTitle
+          id="promo-judul"
+          sub="Kode hanya muncul di hari-hari tertentu dan berlaku sampai pukul 23.59 WIB. Setiap kode hanya bisa dipakai sekali per akun; setelah dipakai, kode hilang dari daftar ini."
+        >
           Kode promo hari ini
-        </h2>
-        <p className="mt-1 text-sm text-muted">
-          Kode hanya muncul di hari-hari tertentu dan berlaku sampai pukul 23.59
-          WIB. Setiap kode hanya bisa dipakai sekali per akun; setelah dipakai,
-          kode hilang dari daftar ini.
-        </p>
+        </SectionTitle>
         {error ? (
           <div className="mt-3">
             <ErrorBox
@@ -234,40 +244,40 @@ export default function Promo() {
             </Empty>
           </div>
         ) : (
-          <ul className="mt-3 grid gap-4 sm:grid-cols-2">
+          <ul className="mt-3 grid gap-5 sm:grid-cols-2">
             {promos.map((p) => (
-              <li
-                key={p.code}
-                className="rounded-2xl border border-line bg-panel p-5"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-display text-lg font-bold">{p.title}</p>
-                    <p className="mt-1 text-sm text-muted">{p.description}</p>
-                  </div>
-                  <p className="font-display text-3xl font-bold text-accent-ink">
+              <li key={p.code} className="flex overflow-hidden nb-card">
+                <div className="flex w-28 shrink-0 flex-col items-center justify-center bg-accent/10 p-3 text-center">
+                  <p className="text-4xl font-extrabold leading-none text-accent-ink">
                     {p.percent_off}%
                   </p>
+                  <p className="mt-1 text-xs text-muted">potongan</p>
                 </div>
-                <ul className="mt-3 list-disc space-y-0.5 pl-5 text-sm text-ink-2">
-                  {promoTerms(p).map((t) => (
-                    <li key={t}>{t}</li>
-                  ))}
-                </ul>
-                <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
-                  <span>
-                    Kode:{" "}
-                    <span className="rounded bg-raised px-2 py-1 font-mono text-ink">
-                      {p.code}
+                <div className="min-w-0 flex-1 border-l border-line p-4">
+                  <p className="text-lg font-bold leading-tight tracking-tight">
+                    {p.title}
+                  </p>
+                  <p className="mt-1 text-sm text-muted">{p.description}</p>
+                  <ul className="mt-3 list-disc space-y-0.5 pl-5 text-sm text-ink-2">
+                    {promoTerms(p).map((t) => (
+                      <li key={t}>{t}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+                    <span>
+                      Kode:{" "}
+                      <span className="rounded-md border border-dashed border-accent-ink bg-raised px-2 py-1 font-semibold tracking-wider text-ink">
+                        {p.code}
+                      </span>
                     </span>
-                  </span>
-                  <span className="text-xs text-faint">Sekali pakai</span>
-                </p>
+                    <span className="text-xs text-faint">Sekali pakai</span>
+                  </p>
+                </div>
               </li>
             ))}
           </ul>
         )}
-        <p className="mt-3 text-sm text-muted">
+        <p className="mt-4 text-sm text-muted">
           Cara pakai: pilih kursi, lalu ketik kodenya di halaman bayar. Satu
           pesanan hanya bisa memakai satu kode, dan kode baru terpakai kalau
           pembayarannya berhasil.

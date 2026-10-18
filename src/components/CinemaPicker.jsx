@@ -1,58 +1,66 @@
-import { useCinema } from '../lib/cinema'
+import { useCinema } from "../lib/cinema";
+import { fieldCls } from "./ui";
 
-function Chip({ active, onClick, children }) {
+// Tab bioskop berbentuk pil. Yang dipilih terisi warna teks (hitam di tema terang, putih di tema gelap).
+function Tab({ active, onClick, children }) {
   return (
     <button
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`min-h-10 rounded-full border px-4 text-sm ${
-        active
-          ? 'border-accent bg-accent font-semibold text-on-accent'
-          : 'border-line-strong text-ink-2 hover:border-accent'
+      className={`min-h-10 rounded-xl border-2 border-edge px-4 text-sm font-bold transition-colors ${
+        active ? "bg-ink text-page" : "bg-panel text-ink hover:bg-raised"
       }`}
     >
       {children}
     </button>
-  )
+  );
 }
 
 // Pemilih bioskop. Pilihannya dibagi ke semua halaman lewat CinemaProvider.
-export default function CinemaPicker({ className = '' }) {
-  const { cinemas, selected, select } = useCinema()
-  if (cinemas.length === 0) return null
+export default function CinemaPicker({ className = "" }) {
+  const { cinemas, selected, select } = useCinema();
+  if (cinemas.length === 0) return null;
 
   return (
     <div className={className}>
-      {/* HP: dropdown (hemat tempat). Layar lebar: deretan chip. */}
+      {/* HP: dropdown (hemat tempat). Layar lebar: deretan tab. */}
       <select
         aria-label="Pilih bioskop"
-        value={selected ? String(selected.id) : ''}
+        value={selected ? String(selected.id) : ""}
         onChange={(e) => select(e.target.value ? e.target.value : null)}
-        className="min-h-11 w-full rounded-xl border border-line-strong bg-panel px-3 sm:hidden"
+        className={`${fieldCls} sm:hidden`}
       >
         <option value="">Semua bioskop</option>
         {cinemas.map((c) => (
           <option key={c.id} value={String(c.id)}>
-            {c.name.replace(/^KursiKu\s+/, '')} · {c.city}
+            {c.name.replace(/^KursiKu\s+/, "")} · {c.city}
           </option>
         ))}
       </select>
-      <div role="group" aria-label="Pilih bioskop" className="hidden flex-wrap gap-2 sm:flex">
-        <Chip active={!selected} onClick={() => select(null)}>
+      <div
+        role="group"
+        aria-label="Pilih bioskop"
+        className="hidden flex-wrap gap-2 sm:flex"
+      >
+        <Tab active={!selected} onClick={() => select(null)}>
           Semua bioskop
-        </Chip>
+        </Tab>
         {cinemas.map((c) => (
-          <Chip key={c.id} active={selected?.id === c.id} onClick={() => select(c.id)}>
-            {c.name.replace(/^KursiKu\s+/, '')} · {c.city}
-          </Chip>
+          <Tab
+            key={c.id}
+            active={selected?.id === c.id}
+            onClick={() => select(c.id)}
+          >
+            {c.name.replace(/^KursiKu\s+/, "")} · {c.city}
+          </Tab>
         ))}
       </div>
       {selected && (
-        <p className="mt-2 text-xs text-faint">
+        <p className="mt-2 text-xs text-ink-2">
           {selected.name} · {selected.address}
         </p>
       )}
     </div>
-  )
+  );
 }

@@ -3,46 +3,30 @@ import { Link } from "react-router-dom";
 import { fmtDayChip, fmtWhen } from "../lib/config";
 import { fmtReleaseShort, untilLabel } from "../lib/release";
 import { ratingOf, watchersOf } from "../lib/rank";
-import { Backdrop, Poster, Texture, btnPrimary } from "./ui";
+import { Backdrop, Poster, Sticker, btnPrimary } from "./ui";
 
 const SLIDE_MS = 6000;
 
-// Tiap kategori punya warna, kalimat alasan, dan tombolnya sendiri, supaya slide-nya tidak terlihat seragam.
-// (Nama kelas Tailwind ditulis utuh di sini; kalau dirakit dari potongan string, Tailwind tidak mengenalinya.)
+// Tiap kategori punya label, kalimat alasan, dan angka besar sendiri, supaya slide-nya tidak terlihat seragam.
 const META = {
   promo: {
     label: "Lagi promo",
-    chip: "bg-amber-300 text-black",
-    ink: "text-amber-300",
-    tint: "from-amber-500/30",
     hint: "Diskon film harian: berganti setiap hari dan hanya berlaku untuk film itu.",
   },
   rating: {
     label: "Rating bagus",
-    chip: "bg-emerald-300 text-black",
-    ink: "text-emerald-300",
-    tint: "from-emerald-500/25",
     hint: "Nilai IMDb kalau ada, kalau tidak nilai TMDB. Film dengan suara terlalu sedikit tidak dihitung.",
   },
   populer: {
     label: "Paling populer",
-    chip: "bg-rose-300 text-black",
-    ink: "text-rose-300",
-    tint: "from-rose-500/25",
     hint: "Berdasarkan skor popularitas TMDB, bukan jumlah tiket KursiKu (ini simulasi).",
   },
   baru: {
     label: "Baru rilis",
-    chip: "bg-sky-300 text-black",
-    ink: "text-sky-300",
-    tint: "from-sky-500/25",
     hint: "Film yang rilis dalam 14 hari terakhir.",
   },
   segera: {
     label: "Segera hadir",
-    chip: "bg-violet-300 text-black",
-    ink: "text-violet-300",
-    tint: "from-violet-500/30",
     hint: "Belum bisa dipesan. Jadwal dibuka saat film rilis.",
   },
 };
@@ -124,59 +108,50 @@ function Slide({ s, index, total, active, next }) {
       aria-label={`${index + 1} dari ${total}: ${meta.label}, ${movie.title}`}
       data-active={active}
       data-kind={s.kind}
-      className="hero-slide relative col-start-1 row-start-1 flex min-h-[28rem] items-center px-5 pb-20 pt-16 sm:min-h-[30rem] sm:px-10 sm:pb-24 sm:pt-10"
-      style={{
-        background: `linear-gradient(120deg, ${movie.poster_from}, ${movie.poster_to})`,
-      }}
+      className="hero-slide on-brand relative col-start-1 row-start-1 flex min-h-[28rem] items-center bg-brand px-5 pb-24 pt-16 text-on-brand sm:min-h-[30rem] sm:px-10 sm:pb-24 sm:pt-10"
     >
-      <Texture />
-      <Backdrop src={movie.backdrop_url} />
+      {/* foto latar sangat redup, hanya memberi suasana; teks selalu di atas warna kobalt polos */}
       <div
         aria-hidden="true"
-        className={`absolute inset-0 ${flip ? "bg-gradient-to-l" : "bg-gradient-to-r"} from-black/85 via-black/60 to-black/20`}
-      />
+        className="absolute inset-0 opacity-20 mix-blend-luminosity"
+      >
+        <Backdrop src={movie.backdrop_url} />
+      </div>
+      {/* garis sobekan di sisi poster */}
       <div
         aria-hidden="true"
-        className={`absolute inset-0 bg-gradient-to-br ${meta.tint} to-transparent`}
+        className={`absolute inset-y-0 hidden w-0 border-l-4 border-dashed border-white/30 md:block ${flip ? "left-[16rem]" : "right-[16rem]"}`}
       />
       <div
         className={`relative flex w-full items-center justify-between gap-10 ${flip ? "md:flex-row-reverse" : ""}`}
       >
         <div className="max-w-xl">
-          <span
-            className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${meta.chip}`}
-          >
-            {meta.label}
-          </span>
-          <p className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-0">
-            <span
-              className={`font-display text-4xl font-bold leading-none tracking-tight sm:text-6xl ${meta.ink}`}
-            >
+          <Sticker>{meta.label}</Sticker>
+          <p className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-0">
+            <span className="font-display text-6xl font-black leading-none tracking-tight text-accent sm:text-8xl">
               {stat.big}
             </span>
-            <span className="text-sm font-medium text-white/90">
-              {stat.cap}
-            </span>
+            <span className="text-sm font-semibold text-white">{stat.cap}</span>
           </p>
-          <h2 className="mt-4 font-display text-3xl font-bold leading-[1.1] tracking-tight text-white sm:text-5xl">
+          <h2 className="mt-3 font-display text-4xl font-extrabold uppercase leading-[0.95] tracking-tight text-white sm:text-6xl">
             {movie.title}
           </h2>
-          <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/85">
+          <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white">
             <span>
               {movie.genre} · {movie.duration_min} menit
             </span>
             {tmdb && (
-              <span className="rounded border border-white/40 px-1.5 text-xs font-semibold">
+              <span className="rounded-sm border border-white/60 px-1.5 font-mono text-xs">
                 ★ {tmdb} TMDB
               </span>
             )}
             {imdb && (
-              <span className="rounded border border-white/40 px-1.5 text-xs font-semibold">
+              <span className="rounded-sm border border-white/60 px-1.5 font-mono text-xs">
                 IMDb {imdb}
               </span>
             )}
           </p>
-          <p className="mt-3 line-clamp-2 text-white/90 sm:line-clamp-3">
+          <p className="mt-3 line-clamp-2 text-white sm:line-clamp-3">
             {movie.synopsis}
           </p>
           <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -188,19 +163,17 @@ function Slide({ s, index, total, active, next }) {
                   : "Lihat jadwal"}
             </Link>
             {!soon && next[movie.id] && (
-              <span className="text-sm text-white/85">
+              <span className="font-mono text-sm text-white">
                 Tayang berikutnya: {fmtWhen(next[movie.id])}
               </span>
             )}
           </div>
         </div>
-        <div
-          className={`relative hidden w-44 shrink-0 md:block ${flip ? "-rotate-3" : "rotate-3"}`}
-        >
+        <div className="relative hidden w-48 shrink-0 md:block">
           <Poster
             movie={movie}
             showMeta={false}
-            className="aspect-[2/3] w-full shadow-2xl shadow-black/50"
+            className="aspect-[2/3] w-full rounded-md border-4 border-white shadow-[6px_6px_0_var(--color-accent)]"
           />
         </div>
       </div>
@@ -260,7 +233,7 @@ export default function Banner({ slides, next }) {
       <div
         id="banner-panel"
         aria-live={playing ? "off" : "polite"}
-        className="relative overflow-hidden rounded-3xl bg-zinc-950"
+        className="relative overflow-hidden rounded-2xl border-4 border-edge bg-brand shadow-[8px_8px_0_var(--color-shadow)]"
         style={{ touchAction: "pan-y" }}
         onPointerDown={(e) => setStartX(e.clientX)}
         onPointerUp={(e) => {
@@ -276,7 +249,7 @@ export default function Banner({ slides, next }) {
             onClick={() => setPaused((p) => !p)}
             aria-pressed={paused}
             aria-label={paused ? "Putar otomatis" : "Jeda geser otomatis"}
-            className="absolute right-3 top-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/55 text-xs text-white backdrop-blur hover:bg-black/75"
+            className="on-brand absolute right-3 top-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-md border-2 border-white/70 bg-brand text-xs text-white hover:bg-white hover:text-brand"
           >
             <span aria-hidden="true">{paused ? "▶" : "❚❚"}</span>
           </button>
@@ -296,7 +269,7 @@ export default function Banner({ slides, next }) {
 
         {list.length > 1 && (
           <ul
-            className="absolute inset-x-0 bottom-0 grid grid-flow-col auto-cols-fr gap-3 px-5 pb-4 sm:px-10 sm:pb-5"
+            className="on-brand absolute inset-x-0 bottom-0 grid grid-flow-col auto-cols-fr gap-3 border-t-2 border-white/30 bg-brand px-5 pb-3 sm:px-10 sm:pb-4"
             aria-label="Kategori pilihan"
           >
             {list.map((s, i) => (
@@ -308,10 +281,10 @@ export default function Banner({ slides, next }) {
                   onClick={() => setPick(i)}
                   className="group block w-full py-3 text-left"
                 >
-                  <span className="block h-1 overflow-hidden rounded-full bg-white/30">
+                  <span className="block h-1.5 overflow-hidden bg-white/30">
                     <span
                       key={`${active}-${playing}`}
-                      className="block h-full origin-left rounded-full bg-white"
+                      className="block h-full origin-left bg-accent"
                       style={
                         i === active && playing
                           ? {
@@ -325,7 +298,7 @@ export default function Banner({ slides, next }) {
                     />
                   </span>
                   <span
-                    className={`mt-2 hidden line-clamp-1 text-xs sm:block ${i === active ? "font-semibold text-white" : "text-white/75 group-hover:text-white"}`}
+                    className={`mt-2 hidden line-clamp-1 text-xs sm:block ${i === active ? "font-bold text-accent" : "text-white group-hover:text-accent"}`}
                   >
                     {META[s.kind].label}
                   </span>
@@ -335,7 +308,7 @@ export default function Banner({ slides, next }) {
           </ul>
         )}
       </div>
-      <p className="mt-2 text-xs text-faint">
+      <p className="mt-3 font-mono text-xs text-faint">
         {list[active].kind === "populer" && list[active].byWatchers
           ? "Jumlah pengguna Trakt yang menonton film ini minggu ini (seluruh dunia), bukan jumlah tiket KursiKu (ini simulasi)."
           : META[list[active].kind].hint}

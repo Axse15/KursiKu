@@ -5,7 +5,7 @@ import { useAuth } from "../lib/auth";
 import { getCodes } from "../lib/booking";
 import { cinemaLabel, fmtDate, fmtTime, fmtWhen } from "../lib/config";
 import { sortSeats } from "../lib/seats";
-import { Empty, ErrorBox, Skeleton } from "../components/ui";
+import { Empty, ErrorBox, Skeleton, Sticker } from "../components/ui";
 import { BOOKING_SELECT } from "./Ticket";
 
 const CODE_OK = /^KSK-[A-Z0-9]{6}$/; // kode dari localStorage disaring dulu sebelum masuk ke filter query
@@ -58,46 +58,50 @@ export default function History() {
   else if (orders.length === 0)
     content = (
       <Empty title="Belum ada pesanan">
-        <Link to="/" className="underline">
+        <Link to="/" className="font-semibold text-accent-ink underline">
           Pesan tiket pertamamu
         </Link>
       </Empty>
     );
   else
     content = (
-      <ul className="space-y-3">
+      <ul className="space-y-4">
         {orders.map((o) => (
           <li key={o.code}>
             <Link
               to={`/tiket/${o.code}`}
-              className="block rounded-xl border border-line p-4 hover:border-accent"
+              className="group flex overflow-hidden nb-card nb-lift"
             >
-              <p className="font-display text-lg font-semibold">
-                {o.showtime.movies.title}
-              </p>
-              {o.showtime.cinemas && (
-                <p className="mt-1 text-sm text-accent-ink">
-                  {cinemaLabel(o.showtime)}
-                </p>
-              )}
-              <p className="mt-1 text-sm capitalize text-muted">
-                {fmtDate(o.showtime.starts_at)} ·{" "}
-                {fmtTime(o.showtime.starts_at)} · {o.showtime.studio}
-              </p>
-              <p className="mt-2 text-sm">
-                Kursi {sortSeats(o.seats).join(", ")} ·{" "}
-                <span className="font-mono text-muted">{o.code}</span>
-              </p>
-              {(o.boughtAt || o.promo) && (
-                <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-faint">
-                  {o.boughtAt && <span>Dibeli {fmtWhen(o.boughtAt)}</span>}
-                  {o.promo && (
-                    <span className="rounded bg-raised px-1.5 py-0.5 font-mono text-ink-2">
-                      Promo {o.promo}
-                    </span>
-                  )}
-                </p>
-              )}
+              <span className="flex w-20 shrink-0 flex-col items-center justify-center bg-accent/10 p-2 text-center sm:w-24">
+                <span className="text-[11px] text-muted">Kursi</span>
+                <span className="text-lg font-extrabold leading-tight text-accent-ink">
+                  {sortSeats(o.seats).join(" ")}
+                </span>
+              </span>
+              <span className="block min-w-0 flex-1 border-l border-line p-4">
+                <span className="block text-lg font-bold leading-tight tracking-tight">
+                  {o.showtime.movies.title}
+                </span>
+                {o.showtime.cinemas && (
+                  <span className="mt-1 block text-sm font-semibold text-accent-ink">
+                    {cinemaLabel(o.showtime)}
+                  </span>
+                )}
+                <span className="mt-1 block text-xs capitalize text-muted">
+                  {fmtDate(o.showtime.starts_at)} ·{" "}
+                  {fmtTime(o.showtime.starts_at)} · {o.showtime.studio}
+                </span>
+                <span className="mt-2 block text-sm">
+                  Kursi {sortSeats(o.seats).join(", ")} ·{" "}
+                  <span className="tnum text-muted">{o.code}</span>
+                </span>
+                {(o.boughtAt || o.promo) && (
+                  <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-faint">
+                    {o.boughtAt && <span>Dibeli {fmtWhen(o.boughtAt)}</span>}
+                    {o.promo && <Sticker>Promo {o.promo}</Sticker>}
+                  </span>
+                )}
+              </span>
             </Link>
           </li>
         ))}
@@ -106,8 +110,10 @@ export default function History() {
 
   return (
     <section>
-      <h1 className="mb-2 font-display text-2xl font-bold">Riwayat pesanan</h1>
-      <p className="mb-4 text-sm text-muted">
+      <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+        Riwayat pesanan
+      </h1>
+      <p className="mb-6 mt-3 max-w-3xl text-sm text-muted">
         {user ? (
           "Menampilkan pesanan akun Google kamu, yang terakhir dibeli di paling atas, ditambah tiket lama yang dibuat di browser ini sebelum login diwajibkan."
         ) : (
@@ -118,7 +124,7 @@ export default function History() {
               <button
                 type="button"
                 onClick={signIn}
-                className="text-accent-ink underline"
+                className="font-semibold text-accent-ink underline"
               >
                 Masuk dengan Google
               </button>

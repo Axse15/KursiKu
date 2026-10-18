@@ -20,19 +20,16 @@ import { VALID_SEAT, isPremium, seatPrice, sortSeats } from "../lib/seats";
 import { makeCode, saveCode } from "../lib/booking";
 import { applyPromo, normalizeCode } from "../lib/promo";
 import { dealPercent } from "../lib/deals";
+import { METHODS, newPayment } from "../lib/payment";
+import PaymentPanel from "../components/PaymentPanel";
 import {
   Empty,
   ErrorBox,
   Skeleton,
   btnGhost,
   btnPrimary,
+  fieldCls,
 } from "../components/ui";
-
-const METHODS = [
-  "QRIS (simulasi)",
-  "Transfer bank (simulasi)",
-  "E-wallet (simulasi)",
-];
 
 export default function Checkout() {
   const { showtimeId } = useParams();
@@ -70,17 +67,22 @@ export default function Checkout() {
 
   const { user, loading: authLoading, authError, signIn } = useAuth();
   const { profile } = useProfile();
+  // null = belum diketik, jadi nama otomatis: nama panggilan di profil, atau nama depan akun Google
   const [typed, setTyped] = useState(null);
   const name =
     typed ?? (user ? (profile?.nickname || firstName(user)).slice(0, 30) : "");
-  const [method, setMethod] = useState(METHODS[0]);
+  const [methodId, setMethodId] = useState(METHODS[0].id);
+  const method = METHODS.find((m) => m.id === methodId) || METHODS[0];
+  const [step, setStep] = useState("form"); // 'form' = isi data, 'pay' = tampilan QR / virtual account
+  const [payment, setPayment] = useState(null);
   const [paying, setPaying] = useState(false);
   const [formError, setFormError] = useState("");
   const [conflict, setConflict] = useState(false);
 
+  // kode promo: promoInput = isi kolom, promo = promo yang sudah diterima
   const [promoInput, setPromoInput] = useState("");
   const [promo, setPromo] = useState(null);
-  const [promoMsg, setPromoMsg] = useState(null);
+  const [promoMsg, setPromoMsg] = useState(null); // { ok, text }
   const [promoBusy, setPromoBusy] = useState(false);
 
   if (error) return <ErrorBox message={error} onRetry={reload} />;
@@ -88,14 +90,14 @@ export default function Checkout() {
   if (!showtime || !seatsValid) {
     return (
       <Empty title="Pesanan tidak valid">
-        <Link to="/" className="underline">
+        <Link to="/" className="font-semibold text-accent-ink underline">
           Mulai dari beranda
         </Link>
       </Empty>
     );
   }
 
-  // diskon film harian dipotong lebih dulu; kode promo dihitung dari harga setelah diskon film
+  // diskon film harian (deals.js) dipotong lebih dulu; kode promo dihitung dari harga setelah diskon film
   const pct = dealPercent(showtime.movie_id, showtime.starts_at);
   const base = seats.reduce((sum, c) => sum + seatPrice(c, showtime), 0);
   const subtotal = seats.reduce(
@@ -172,9 +174,10 @@ export default function Checkout() {
     setPromoMsg(null);
   }
 
-  async function pay(e) {
+  // Langkah 1: periksa isian, lalu tampilkan QR / nomor virtual account
+  function proceed(e) {
     e.preventDefault();
-    if (!user) return;
+    if (!user) return; // penjaga cadangan; tombol bayar juga tidak tampil untuk tamu
     const customer = name.trim();
     if (!customer) {
       setFormError("Isi nama panggilan dulu.");
@@ -188,6 +191,7 @@ export default function Checkout() {
       document.getElementById("promo")?.focus();
       return;
     }
+    // syarat promo diperiksa ulang tepat sebelum bayar (mis. jam sudah lewat tengah malam)
     if (promo && !applyPromo(promo, ctx).ok) {
       setPromo(null);
       setPromoMsg(null);
@@ -196,10 +200,20 @@ export default function Checkout() {
       );
       return;
     }
+    setFormError("");
+    setPayment(newPayment(total));
+    setStep("pay");
+  }
+
+  // Langkah 2: pembayaran masuk (QRIS/e-wallet terdeteksi otomatis, transfer bank lewat tombol), pesanan disimpan
+  async function confirmPaid() {
+    if (!user || !payment) return;
+    const customer = name.trim();
+    if (payment.expiresAt <= Date.now()) return; // waktu bayar habis: tombol 'Buat kode baru' yang tampil
     setPaying(true);
     setFormError("");
 
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 1200)); // simulasi proses pembayaran
 
     const code = makeCode();
     const rows = seats.map((seat_code) => ({
@@ -207,11 +221,12 @@ export default function Checkout() {
       showtime_id: Number(showtimeId),
       seat_code,
       customer_name: customer,
-      user_id: user.id,
+      user_id: user.id, // database menolak user_id milik orang lain, dan menolak pesanan tanpa login
       promo_code: promo ? promo.code : null,
-      deal_percent: pct,
+      deal_percent: pct, // dicatat supaya total tiket tidak berubah kalau aturan diskon kelak diganti
     }));
 
+    // Satu insert = satu transaksi: kalau salah satu kursi bentrok, SEMUA ditolak.
     const { error: insertError } = await supabase.from("bookings").insert(rows);
 
     if (insertError) {
@@ -224,6 +239,7 @@ export default function Checkout() {
         setPromo(null);
         setPromoMsg(null);
         setPromoInput("");
+        setStep("form"); // total berubah: kembali ke langkah isi data
         setFormError(
           (used
             ? "Kode promo ini sudah pernah kamu pakai."
@@ -246,9 +262,9 @@ export default function Checkout() {
     return (
       <div
         role="alert"
-        className="rounded-xl border border-warn-line bg-warn-bg p-6"
+        className="rounded-xl border-2 border-warn-line bg-warn-bg p-6"
       >
-        <p className="font-display text-xl font-semibold text-accent-ink">
+        <p className="text-xl font-bold tracking-tight text-warn">
           Kursi baru saja dipesan orang lain
         </p>
         <p className="mt-2 text-ink-2">
@@ -265,66 +281,73 @@ export default function Checkout() {
   }
 
   const summary = (
-    <div className="rounded-xl border border-line p-4">
-      <p className="font-display text-lg font-semibold">
-        {showtime.movies.title}
-      </p>
-      {showtime.cinemas && (
-        <p className="mt-1 text-sm font-medium text-accent-ink">
-          {cinemaLabel(showtime)}
+    <div className="overflow-hidden nb-card">
+      <div className="border-b-2 border-edge bg-tile-yellow p-4">
+        <p className="text-lg font-bold leading-snug tracking-tight">
+          {showtime.movies.title}
         </p>
-      )}
-      <p className="mt-1 text-sm capitalize text-muted">
-        {fmtDate(showtime.starts_at)} · {fmtTime(showtime.starts_at)} ·{" "}
-        {showtime.studio}
-      </p>
-      <ul className="mt-4 divide-y divide-line text-sm">
-        {seats.map((c) => (
-          <li key={c} className="flex justify-between py-2">
-            <span>
-              Kursi {c} ({isPremium(c) ? "Premium" : "Reguler"})
-            </span>
-            <span>{rupiah(seatPrice(c, showtime))}</span>
-          </li>
-        ))}
-      </ul>
-      {(dealDiscount > 0 || discount > 0) && (
-        <div className="mt-3 space-y-1 border-t border-line-strong pt-3 text-sm text-ok">
-          {dealDiscount > 0 && (
-            <p className="flex justify-between">
-              <span>Diskon film {pct}%</span>
-              <span>− {rupiah(dealDiscount)}</span>
-            </p>
-          )}
-          {discount > 0 && (
-            <p className="flex justify-between">
-              <span>Promo {promo.code}</span>
-              <span>− {rupiah(discount)}</span>
-            </p>
-          )}
-        </div>
-      )}
-      <p
-        className={`mt-3 flex justify-between ${dealDiscount > 0 || discount > 0 ? "" : "border-t border-line-strong pt-3"} font-display text-lg font-bold`}
-      >
-        <span>Total</span>
-        <span>{rupiah(total)}</span>
-      </p>
+        {showtime.cinemas && (
+          <p className="mt-1 text-sm font-bold">{cinemaLabel(showtime)}</p>
+        )}
+        <p className="mt-1 text-xs capitalize text-ink-2">
+          {fmtDate(showtime.starts_at)} · {fmtTime(showtime.starts_at)} ·{" "}
+          {showtime.studio}
+        </p>
+      </div>
+      <div className="p-4">
+        <ul className="divide-y divide-line text-sm">
+          {seats.map((c) => (
+            <li key={c} className="flex justify-between py-2">
+              <span>
+                Kursi {c} ({isPremium(c) ? "Premium" : "Reguler"})
+              </span>
+              <span className="tnum">{rupiah(seatPrice(c, showtime))}</span>
+            </li>
+          ))}
+        </ul>
+        {(dealDiscount > 0 || discount > 0) && (
+          <div className="tnum mt-3 space-y-1 border-t border-line pt-3 text-sm text-ok">
+            {dealDiscount > 0 && (
+              <p className="flex justify-between">
+                <span>Diskon film {pct}%</span>
+                <span>− {rupiah(dealDiscount)}</span>
+              </p>
+            )}
+            {discount > 0 && (
+              <p className="flex justify-between">
+                <span>Promo {promo.code}</span>
+                <span>− {rupiah(discount)}</span>
+              </p>
+            )}
+          </div>
+        )}
+        <p
+          className={`mt-3 flex items-baseline justify-between ${dealDiscount > 0 || discount > 0 ? "" : "border-t border-line pt-3"}`}
+        >
+          <span className="font-semibold">Total</span>
+          <span className="tnum text-2xl font-extrabold leading-none">
+            {rupiah(total)}
+          </span>
+        </p>
+      </div>
     </div>
   );
 
+  // ---- Wajib login: tamu hanya melihat ringkasan, lalu diminta masuk dan dikembalikan ke halaman ini ----
   if (authLoading) return <Skeleton className="h-72" />;
   if (!user) {
     return (
-      <div className="space-y-6">
-        <h1 className="font-display text-2xl font-bold">Ringkasan pesanan</h1>
+      <div className="mx-auto max-w-xl space-y-6">
+        <h1 className="text-4xl font-extrabold tracking-tight">
+          Ringkasan pesanan
+        </h1>
         {summary}
         <div
           role="region"
           aria-labelledby="gate-judul"
-          className="rounded-xl border border-warn-line bg-warn-bg p-5"
+          className="rounded-xl border-2 border-warn-line bg-warn-bg p-5"
         >
-          <h2 id="gate-judul" className="font-display text-lg font-semibold">
+          <h2 id="gate-judul" className="text-lg font-bold tracking-tight">
             Masuk dulu untuk memesan
           </h2>
           <p className="mt-2 text-sm text-ink-2">
@@ -356,138 +379,182 @@ export default function Checkout() {
   }
 
   return (
-    <form onSubmit={pay} className="space-y-6">
-      <h1 className="font-display text-2xl font-bold">Ringkasan pesanan</h1>
+    <form
+      onSubmit={proceed}
+      className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_23rem] lg:gap-x-12"
+    >
+      <h1 className="text-4xl font-extrabold tracking-tight lg:col-span-2">
+        {step === "pay" ? "Pembayaran" : "Ringkasan pesanan"}
+      </h1>
 
-      {summary}
-
-      <div>
-        <label htmlFor="nama" className="block text-sm font-medium text-ink-2">
-          Nama panggilan
-        </label>
-        <input
-          id="nama"
-          value={name}
-          onChange={(e) => setTyped(e.target.value)}
-          maxLength={30}
-          placeholder="Contoh: Dinda"
-          className="mt-1 min-h-11 w-full rounded-xl border border-line-strong bg-panel px-3"
-        />
-        <p className="mt-1 text-xs text-faint">
-          Diambil dari profilmu (atau akun Google), boleh kamu ganti. Nama ini
-          ikut tersimpan di data pesanan.
-        </p>
+      {/* di HP dan tablet, saat membayar, kode QR / nomor VA tampil lebih dulu dan ringkasan pesanan di bawahnya */}
+      <div
+        className={`lg:order-none lg:col-start-2 lg:row-start-2 lg:sticky lg:top-24 lg:self-start ${step === "pay" ? "order-2" : ""}`}
+      >
+        {summary}
       </div>
 
-      <div>
-        <label htmlFor="promo" className="block text-sm font-medium text-ink-2">
-          Kode promo (opsional)
-        </label>
-        <div className="mt-1 flex gap-2">
-          <input
-            id="promo"
-            value={promoInput}
-            onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
-            disabled={!!promo || promoBusy}
-            maxLength={20}
-            autoCapitalize="characters"
-            autoComplete="off"
-            onKeyDown={(e) => {
-              // Enter di kolom ini = "Pakai", BUKAN membayar (form ini akan mengirim pesanan kalau Enter dibiarkan)
-              if (e.key === "Enter") {
-                e.preventDefault();
-                if (!promo && !promoBusy) applyCode();
-              }
+      {step === "pay" && payment ? (
+        <div className="lg:col-start-1 lg:row-start-2">
+          <PaymentPanel
+            method={method}
+            payment={payment}
+            paying={paying}
+            error={formError}
+            onPaid={confirmPaid}
+            onBack={() => {
+              setStep("form");
+              setFormError("");
             }}
-            spellCheck={false}
-            placeholder="Masukkan kode promo"
-            aria-describedby="promo-info"
-            className="min-h-11 min-w-0 flex-1 rounded-xl border border-line-strong bg-panel px-3 font-mono disabled:opacity-60"
+            onRenew={() => setPayment(newPayment(total))}
           />
-          {promo ? (
-            <button type="button" onClick={removePromo} className={btnGhost}>
-              Hapus
-            </button>
-          ) : (
+        </div>
+      ) : (
+        <div className="space-y-6 lg:col-start-1 lg:row-start-2">
+          <div>
+            <label
+              htmlFor="nama"
+              className="block text-sm font-semibold text-ink-2"
+            >
+              Nama panggilan
+            </label>
+            <input
+              id="nama"
+              value={name}
+              onChange={(e) => setTyped(e.target.value)}
+              maxLength={30}
+              placeholder="Contoh: Dinda"
+              className={`mt-1 ${fieldCls}`}
+            />
+            <p className="mt-1 text-xs text-faint">
+              Diambil dari profilmu (atau akun Google), boleh kamu ganti. Nama
+              ini ikut tersimpan di data pesanan.
+            </p>
+          </div>
+
+          <div>
+            <label
+              htmlFor="promo"
+              className="block text-sm font-semibold text-ink-2"
+            >
+              Kode promo (opsional)
+            </label>
+            <div className="mt-1 flex gap-2">
+              <input
+                id="promo"
+                value={promoInput}
+                onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  // Enter di kolom ini = "Pakai", BUKAN membayar (form ini akan mengirim pesanan kalau Enter dibiarkan)
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (!promo && !promoBusy) applyCode();
+                  }
+                }}
+                disabled={!!promo || promoBusy}
+                maxLength={20}
+                autoCapitalize="characters"
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="Masukkan kode promo"
+                aria-describedby="promo-info"
+                className={`${fieldCls} min-w-0 flex-1 uppercase tracking-wide disabled:opacity-60`}
+              />
+              {promo ? (
+                <button
+                  type="button"
+                  onClick={removePromo}
+                  className={btnGhost}
+                >
+                  Hapus
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={applyCode}
+                  disabled={promoBusy}
+                  className={btnGhost}
+                >
+                  {promoBusy ? "Memeriksa…" : "Pakai"}
+                </button>
+              )}
+            </div>
+            <p
+              id="promo-info"
+              role={promoMsg ? (promoMsg.ok ? "status" : "alert") : undefined}
+              className={`mt-1 text-sm ${promoMsg ? (promoMsg.ok ? "text-ok" : "text-danger") : "text-faint"}`}
+            >
+              {promoMsg ? (
+                promoMsg.text
+              ) : (
+                <>
+                  Kode hari ini ada di{" "}
+                  <Link
+                    to="/promo"
+                    className="font-semibold text-accent-ink underline"
+                  >
+                    halaman promo
+                  </Link>
+                  . Satu kode hanya bisa dipakai sekali.
+                </>
+              )}
+            </p>
+          </div>
+
+          <fieldset>
+            <legend className="text-sm font-semibold text-ink-2">
+              Metode pembayaran
+            </legend>
+            <div className="mt-2 space-y-2">
+              {METHODS.map((m) => (
+                <label
+                  key={m.id}
+                  className="flex min-h-11 items-center gap-3 rounded-xl border-2 border-edge bg-panel px-3 text-sm font-semibold has-[:checked]:bg-tile-yellow"
+                >
+                  <input
+                    type="radio"
+                    name="method"
+                    value={m.label}
+                    checked={methodId === m.id}
+                    onChange={() => setMethodId(m.id)}
+                    className="size-4 accent-[var(--color-accent-ink)]"
+                  />
+                  {m.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <p className="rounded-xl border-2 border-edge bg-panel p-3 text-xs text-ink-2">
+            Di langkah berikutnya kamu akan melihat kode QR atau nomor virtual
+            account. Tidak ada uang sungguhan yang diproses (demo tugas kuliah).
+          </p>
+
+          {formError && (
+            <p role="alert" className="text-sm text-danger">
+              {formError}
+            </p>
+          )}
+
+          <div className="flex gap-3">
             <button
               type="button"
-              onClick={applyCode}
-              disabled={promoBusy}
+              onClick={() => navigate(-1)}
+              disabled={paying}
               className={btnGhost}
             >
-              {promoBusy ? "Memeriksa…" : "Pakai"}
+              Kembali
             </button>
-          )}
-        </div>
-        <p
-          id="promo-info"
-          role={promoMsg ? (promoMsg.ok ? "status" : "alert") : undefined}
-          className={`mt-1 text-sm ${promoMsg ? (promoMsg.ok ? "text-ok" : "text-danger") : "text-faint"}`}
-        >
-          {promoMsg ? (
-            promoMsg.text
-          ) : (
-            <>
-              Kode hari ini ada di{" "}
-              <Link to="/promo" className="underline">
-                halaman promo
-              </Link>
-              . Satu kode hanya bisa dipakai sekali.
-            </>
-          )}
-        </p>
-      </div>
-
-      <fieldset>
-        <legend className="text-sm font-medium text-ink-2">
-          Metode pembayaran
-        </legend>
-        <div className="mt-2 space-y-2">
-          {METHODS.map((m) => (
-            <label
-              key={m}
-              className="flex min-h-11 items-center gap-3 rounded-xl border border-line-strong px-3 has-[:checked]:border-accent"
+            <button
+              type="submit"
+              disabled={paying}
+              className={`${btnPrimary} flex-1`}
             >
-              <input
-                type="radio"
-                name="method"
-                value={m}
-                checked={method === m}
-                onChange={() => setMethod(m)}
-              />
-              {m}
-            </label>
-          ))}
+              {`Lanjut bayar ${rupiah(total)}`}
+            </button>
+          </div>
         </div>
-      </fieldset>
-
-      <p className="rounded-lg bg-panel p-3 text-xs text-muted">
-        Ini simulasi. Tidak ada uang sungguhan yang diproses.
-      </p>
-
-      {formError && (
-        <p role="alert" className="text-sm text-danger">
-          {formError}
-        </p>
       )}
-
-      <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          disabled={paying}
-          className={btnGhost}
-        >
-          Kembali
-        </button>
-        <button
-          type="submit"
-          disabled={paying}
-          className={`${btnPrimary} flex-1`}
-        >
-          {paying ? "Memproses…" : `Bayar ${rupiah(total)}`}
-        </button>
-      </div>
     </form>
   );
 }

@@ -13,9 +13,11 @@ import { Avatar } from "../components/AuthButton";
 import {
   Empty,
   ErrorBox,
+  SectionTitle,
   Skeleton,
   btnGhost,
   btnPrimary,
+  fieldCls,
 } from "../components/ui";
 import { BOOKING_SELECT } from "./Ticket";
 
@@ -44,9 +46,11 @@ function groupOrders(rows) {
 
 function Stat({ label, value }) {
   return (
-    <div className="rounded-xl border border-line p-4">
-      <dt className="text-xs text-faint">{label}</dt>
-      <dd className="mt-1 font-display text-xl font-bold">{value}</dd>
+    <div className="nb-card p-4">
+      <dt className="text-xs text-muted">{label}</dt>
+      <dd className="tnum mt-2 break-words text-2xl font-extrabold leading-tight">
+        {value}
+      </dd>
     </div>
   );
 }
@@ -193,18 +197,20 @@ export default function Profile() {
 
   return (
     <div className="space-y-8">
-      <h1 className="font-display text-2xl font-bold">Profil</h1>
+      <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+        Profil
+      </h1>
 
-      <section className="flex items-center gap-4 rounded-2xl border border-line p-5">
+      <section className="flex items-center gap-4 rounded-2xl border border-line bg-panel p-5 shadow-sm">
         <Avatar user={user} size={64} />
         <div className="min-w-0">
-          <p className="truncate font-display text-xl font-semibold">
+          <p className="truncate text-xl font-bold leading-tight tracking-tight">
             {displayName(user)}
           </p>
           {user.email && (
-            <p className="truncate text-sm text-muted">{user.email}</p>
+            <p className="mt-1 truncate text-sm text-ink-2">{user.email}</p>
           )}
-          <p className="mt-1 text-xs text-faint">
+          <p className="mt-1 text-xs text-muted">
             Masuk lewat Google
             {user.created_at && ` · bergabung ${fmtJoined(user.created_at)}`}
           </p>
@@ -212,9 +218,7 @@ export default function Profile() {
       </section>
 
       <section aria-labelledby="stat-judul">
-        <h2 id="stat-judul" className="mb-3 font-display text-lg font-semibold">
-          Ringkasan pesananmu
-        </h2>
+        <SectionTitle id="stat-judul">Ringkasan pesananmu</SectionTitle>
         {ordersError ? (
           <ErrorBox message={ordersError} onRetry={reload} />
         ) : !stats ? (
@@ -233,18 +237,23 @@ export default function Profile() {
       </section>
 
       <section aria-labelledby="tiket-judul">
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2 id="tiket-judul" className="font-display text-lg font-semibold">
-            Tiket mendatang
-          </h2>
-          <Link to="/riwayat" className="text-sm text-accent-ink underline">
-            Semua riwayat
-          </Link>
-        </div>
+        <SectionTitle
+          id="tiket-judul"
+          aside={
+            <Link
+              to="/riwayat"
+              className="text-sm font-semibold text-accent-ink underline"
+            >
+              Semua riwayat
+            </Link>
+          }
+        >
+          Tiket mendatang
+        </SectionTitle>
         {upcoming.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-line-strong p-4 text-sm text-muted">
+          <p className="nb-card p-4 text-sm text-muted">
             Belum ada tiket untuk jadwal yang akan datang.{" "}
-            <Link to="/" className="underline">
+            <Link to="/" className="font-semibold text-accent-ink underline">
               Cari film
             </Link>
           </p>
@@ -254,17 +263,19 @@ export default function Profile() {
               <li key={o.code}>
                 <Link
                   to={`/tiket/${o.code}`}
-                  className="block rounded-xl border border-line p-4 hover:border-accent"
+                  className="block nb-card p-4 transition-colors hover:border-line-hover hover:bg-raised"
                 >
-                  <p className="font-medium">{o.showtime.movies.title}</p>
-                  <p className="mt-1 text-sm capitalize text-muted">
+                  <p className="text-base font-semibold leading-tight tracking-tight">
+                    {o.showtime.movies.title}
+                  </p>
+                  <p className="mt-1 text-xs capitalize text-muted">
                     {fmtDate(o.showtime.starts_at)} ·{" "}
                     {fmtTime(o.showtime.starts_at)}
                     {o.showtime.cinemas && ` · ${cinemaLabel(o.showtime)}`}
                   </p>
                   <p className="mt-1 text-sm">
                     Kursi {sortSeats(o.seats).join(", ")} ·{" "}
-                    <span className="font-mono text-muted">{o.code}</span>
+                    <span className="tnum text-muted">{o.code}</span>
                   </p>
                 </Link>
               </li>
@@ -276,9 +287,9 @@ export default function Profile() {
       <form
         onSubmit={onSave}
         aria-labelledby="atur-judul"
-        className="space-y-4 rounded-2xl border border-line p-5"
+        className="space-y-4 nb-card p-5"
       >
-        <h2 id="atur-judul" className="font-display text-lg font-semibold">
+        <h2 id="atur-judul" className="text-lg font-bold tracking-tight">
           Pengaturan
         </h2>
 
@@ -295,7 +306,7 @@ export default function Profile() {
         <div>
           <label
             htmlFor="nick"
-            className="block text-sm font-medium text-ink-2"
+            className="block text-sm font-semibold text-ink-2"
           >
             Nama panggilan
           </label>
@@ -306,7 +317,7 @@ export default function Profile() {
             maxLength={30}
             disabled={profileLoading || busy}
             placeholder={`Kosong = pakai nama dari Google`}
-            className="mt-1 min-h-11 w-full rounded-xl border border-line-strong bg-panel px-3"
+            className={`mt-1 ${fieldCls}`}
           />
           <p className="mt-1 text-xs text-faint">
             Dipakai otomatis saat checkout dan tercetak di tiket. Nama ini
@@ -315,7 +326,10 @@ export default function Profile() {
         </div>
 
         <div>
-          <label htmlFor="fav" className="block text-sm font-medium text-ink-2">
+          <label
+            htmlFor="fav"
+            className="block text-sm font-semibold text-ink-2"
+          >
             Bioskop favorit
           </label>
           <select
@@ -323,7 +337,7 @@ export default function Profile() {
             value={favValue}
             onChange={(e) => setFav(e.target.value)}
             disabled={profileLoading || busy}
-            className="mt-1 min-h-11 w-full rounded-xl border border-line-strong bg-panel px-3"
+            className={`mt-1 ${fieldCls}`}
           >
             <option value="">Belum ada</option>
             {cinemas.map((c) => (
@@ -368,14 +382,14 @@ export default function Profile() {
                 type="button"
                 onClick={onReset}
                 disabled={busy}
-                className="rounded-lg bg-red-500 px-3 py-2 font-medium text-white"
+                className="min-h-11 rounded-lg border border-danger px-3 font-semibold text-danger hover:bg-danger-bg"
               >
                 Ya, reset
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmReset(false)}
-                className="underline"
+                className="min-h-11 px-2 underline"
               >
                 Batal
               </button>
@@ -384,7 +398,7 @@ export default function Profile() {
             <button
               type="button"
               onClick={() => setConfirmReset(true)}
-              className="text-sm text-muted underline"
+              className="inline-flex min-h-11 items-center text-sm text-muted underline"
             >
               Reset profil
             </button>

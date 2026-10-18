@@ -1,10 +1,18 @@
 import { useState } from "react";
-import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import {
+  Link,
+  NavLink,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import { isConfigured } from "./lib/supabase";
 import { Empty, btnPrimary } from "./components/ui";
 import ErrorBoundary from "./components/ErrorBoundary";
 import AuthButton from "./components/AuthButton";
 import ThemeToggle from "./components/ThemeToggle";
+import HeaderSearch from "./components/HeaderSearch";
 import BackButton from "./components/BackButton";
 import { AuthProvider } from "./lib/auth";
 import { ProfileProvider } from "./lib/profile";
@@ -17,8 +25,12 @@ import Ticket from "./pages/Ticket";
 import History from "./pages/History";
 import Profile from "./pages/Profile";
 import Promo from "./pages/Promo";
-import Nearby from "./pages/Nearby";
+import NowShowing from "./pages/NowShowing";
+import ComingSoon from "./pages/ComingSoon";
+import Cinemas from "./pages/Cinemas";
+import SearchPage from "./pages/SearchPage";
 
+// Atribusi wajib dari TMDB. Taruh logo resmi TMDB di public/tmdb-logo.svg (kalau belum ada, logo disembunyikan).
 function TmdbCredit() {
   const [noLogo, setNoLogo] = useState(false);
   return (
@@ -39,72 +51,83 @@ function TmdbCredit() {
 }
 
 const NAV = [
-  ["/promo", "Promo"],
-  ["/terdekat", "Terdekat"],
+  ["/bioskop", "Bioskop"],
+  ["/sedang-tayang", "Sedang tayang"],
+  ["/segera-hadir", "Coming soon"],
   ["/riwayat", "Riwayat"],
+  ["/profil", "Profil"],
 ];
 
+// halaman daftar dibuat lebih lebar (tata letak bento); halaman lain (kursi, bayar, tiket) tetap sempit agar nyaman dibaca
+const WIDE = ["/", "/bioskop", "/sedang-tayang", "/segera-hadir", "/cari"];
+
 function Layout({ children }) {
-  const width = useLocation().pathname === "/" ? "max-w-6xl" : "max-w-3xl";
+  const width = WIDE.includes(useLocation().pathname)
+    ? "max-w-6xl"
+    : "max-w-5xl";
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sm:sticky sm:top-0 z-30 border-b border-dashed border-line-strong bg-page/85 backdrop-blur print:hidden">
-        <div
-          className={`mx-auto flex ${width} flex-wrap items-center justify-between gap-x-4 px-4 py-1 sm:py-3`}
-        >
-          <Link
-            to="/"
-            className="flex min-h-11 items-center gap-2 font-display text-2xl font-bold tracking-tight text-ink"
-          >
-            {/* tanda karcis: persegi panjang dengan dua takik di sisi kiri-kanan */}
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 28 20"
-              className="h-5 w-7 shrink-0 text-accent"
+      <header className="z-30 border-b-2 border-edge bg-page/95 backdrop-blur-md lg:sticky lg:top-0 print:hidden">
+        <div className={`mx-auto ${width} px-4 py-2`}>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 md:flex-nowrap">
+            <Link
+              to="/"
+              className="flex min-h-11 items-center gap-2.5 font-display text-xl font-extrabold tracking-tight text-ink"
             >
-              <path
-                fill="currentColor"
-                d="M3 0h22a3 3 0 0 1 3 3v3.2a3.8 3.8 0 0 0 0 7.6V17a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3v-3.2a3.8 3.8 0 0 0 0-7.6V3a3 3 0 0 1 3-3Z"
-              />
-              <path
-                fill="none"
-                style={{ stroke: "var(--color-page)" }}
-                strokeWidth="1.4"
-                strokeDasharray="2 2.2"
-                d="M9.5 2v16"
-              />
-            </svg>
-            KursiKu
-          </Link>
+              {/* tanda kursi bioskop: sandaran, dua sandaran tangan, dudukan */}
+              <span
+                aria-hidden="true"
+                className="grid size-9 place-items-center rounded-xl border-2 border-edge bg-accent text-on-accent shadow-nb"
+              >
+                <svg viewBox="0 0 24 24" className="size-5" fill="currentColor">
+                  <rect x="5" y="2" width="14" height="11" rx="3" />
+                  <rect x="1.5" y="9" width="5" height="10" rx="2" />
+                  <rect x="17.5" y="9" width="5" height="10" rx="2" />
+                  <rect x="5" y="14" width="14" height="6" rx="2" />
+                </svg>
+              </span>
+              KursiKu
+            </Link>
+
+            {/* HP tegak: pencarian turun ke baris sendiri; tablet ke atas: di tengah header */}
+            <HeaderSearch className="order-last w-full md:order-none md:max-w-md md:flex-1" />
+
+            <div className="ml-auto flex items-center gap-1">
+              <ThemeToggle />
+              <AuthButton />
+            </div>
+          </div>
+
           <nav
             aria-label="Menu utama"
-            className="order-last flex w-full items-center gap-1 sm:order-none sm:w-auto sm:gap-2"
+            className="-mx-1 mt-2 flex gap-1.5 overflow-x-auto px-1 pb-1"
           >
             {NAV.map(([to, label]) => (
               <NavLink
                 key={to}
                 to={to}
                 className={({ isActive }) =>
-                  `flex min-h-11 items-center rounded-lg px-3 text-sm hover:text-accent-ink ${isActive ? "font-semibold text-accent-ink" : "text-ink-2"}`
+                  `flex min-h-10 shrink-0 items-center rounded-xl border-2 px-3.5 text-sm font-bold transition-colors ${
+                    isActive
+                      ? "border-edge bg-tile-yellow text-ink shadow-nb"
+                      : "border-transparent text-ink-2 hover:border-edge hover:bg-raised"
+                  }`
                 }
               >
                 {label}
               </NavLink>
             ))}
           </nav>
-          <div className="flex items-center gap-1">
-            <ThemeToggle />
-            <AuthButton />
-          </div>
         </div>
       </header>
 
-      <main className="{mx-auto w-full ${width} flex-1 px-4 py-6 sm:py-8}">
+      <main className={`mx-auto w-full ${width} flex-1 px-4 py-6 sm:py-8`}>
         <BackButton />
         {children}
       </main>
-      <footer className="border-t border-dashed border-line-strong px-4 py-4 text-center text-xs text-faint print:hidden">
+
+      <footer className="border-t-2 border-edge px-4 py-8 text-center text-xs text-muted print:hidden">
         <p>
           Bioskop fiktif untuk tugas kuliah. Jadwal, harga, dan pemesanan hanya
           simulasi.
@@ -137,9 +160,9 @@ export default function App() {
       <Layout>
         <div
           role="alert"
-          className="rounded-xl border border-warn-line bg-warn-bg p-4 text-sm"
+          className="rounded-2xl border-2 border-warn-line bg-warn-bg p-4 text-sm"
         >
-          <p className="font-semibold text-accent-ink">
+          <p className="font-semibold text-warn">
             Konfigurasi Supabase belum diisi
           </p>
           <p className="mt-2 text-ink-2">
@@ -157,6 +180,7 @@ export default function App() {
       <ProfileProvider>
         <CinemaProvider>
           <Layout>
+            {/* key = alamat halaman, supaya error di satu halaman hilang saat pindah halaman */}
             <ErrorBoundary key={location.pathname}>
               <Routes>
                 <Route path="/" element={<Home />} />
@@ -167,7 +191,14 @@ export default function App() {
                 <Route path="/riwayat" element={<History />} />
                 <Route path="/profil" element={<Profile />} />
                 <Route path="/promo" element={<Promo />} />
-                <Route path="/terdekat" element={<Nearby />} />
+                <Route path="/bioskop" element={<Cinemas />} />
+                <Route path="/sedang-tayang" element={<NowShowing />} />
+                <Route path="/segera-hadir" element={<ComingSoon />} />
+                <Route path="/cari" element={<SearchPage />} />
+                <Route
+                  path="/terdekat"
+                  element={<Navigate to="/bioskop" replace />}
+                />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </ErrorBoundary>

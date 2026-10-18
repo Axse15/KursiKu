@@ -44,6 +44,7 @@ export function buildQuery(lat, lon, radiusKm) {
   return `[out:json][timeout:12];nwr["amenity"="cinema"]["name"](around:${r},${lat},${lon});out center tags;`;
 }
 
+// jarak garis lurus (km), rumus haversine
 // Nominatim: cari "cinema" di dalam kotak yang melingkupi radius, lalu saring jaraknya sendiri.
 export function nominatimUrl(lat, lon, radiusKm) {
   const dLat = radiusKm / 111.32;
@@ -97,7 +98,6 @@ export function nominatimToElements(rows, lat, lon, radiusKm) {
   return out;
 }
 
-// jarak garis lurus (km), rumus haversine
 export function haversineKm(lat1, lon1, lat2, lon2) {
   const rad = (d) => (d * Math.PI) / 180;
   const dLat = rad(lat2 - lat1);
@@ -108,20 +108,72 @@ export function haversineKm(lat1, lon1, lat2, lon2) {
   return 6371 * 2 * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
+// Jaringan bioskop dikenali dari nama/brand/operator di data OSM. Kalau tidak cocok, kosong (bukan ditebak).
 const BRANDS = [
-  ["CGV", /\bcgv\b/i],
-  ["XXI", /\bxxi\b/i],
+  ["CGV", /\bcgv\b|blitz\s*megaplex/i],
+  [
+    "XXI",
+    /\bxxi\b|\bcinema\s*21\b|\bcineplex\s*21\b|\b21\s*cineplex\b|\bthe\s+premiere\b/i,
+  ],
   ["Cinépolis", /cin[eé]polis/i],
   ["Flix", /\bflix\b/i],
   ["Movimax", /movimax/i],
   ["Platinum", /platinum\s*cineplex/i],
+  ["Cinemaxx", /cinemaxx/i],
 ];
 
-// Nama jaringan dikenali dari nama/brand/operator di data OSM. Kalau tidak cocok, kosong (bukan ditebak).
+// Format layar / kelas studio yang disebut di nama atau keterangan. Satu bioskop bisa punya beberapa (mis. CGV dengan IMAX dan 4DX).
+const FORMATS = [
+  ["IMAX", /\bimax\b/i],
+  ["4DX", /\b4dx\b/i],
+  ["ScreenX", /screen\s*x\b/i],
+  ["Dolby Atmos", /dolby/i],
+  ["Premiere", /premiere/i],
+  ["Velvet", /velvet/i],
+  ["Gold Class", /gold\s*class/i],
+  ["Sweetbox", /sweet\s*box/i],
+  ["Sphere X", /sphere\s*x\b/i],
+];
+
+// Situs resmi tiap jaringan. Tiket sungguhan hanya bisa dibeli di sana; KursiKu hanya simulasi.
+export const BRAND_SITES = {
+  XXI: "https://21cineplex.com",
+  CGV: "https://www.cgv.id",
+};
+
+const hayOf = (tags) =>
+  [
+    tags.brand,
+    tags.operator,
+    tags.name,
+    tags["name:en"],
+    tags.alt_name,
+    tags.short_name,
+    tags.official_name,
+    tags.description,
+    tags.note,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
 export function detectBrand(tags = {}) {
-  const hay = [tags.brand, tags.operator, tags.name].filter(Boolean).join(" ");
-  const hit = BRANDS.find(([, re]) => re.test(hay));
+  const hit = BRANDS.find(([, re]) => re.test(hayOf(tags)));
   return hit ? hit[0] : null;
+}
+
+// Daftar format yang terdeteksi, tanpa duplikat. Tag OSM eksplisit (mis. imax=yes) juga dihitung.
+export function detectFormats(tags = {}) {
+  const hay = hayOf(tags);
+  const out = FORMATS.filter(([, re]) => re.test(hay)).map(([name]) => name);
+  const yes = (k) => String(tags[k] || "").toLowerCase() === "yes";
+  if (
+    (yes("imax") || yes("cinema:imax") || yes("screen:imax")) &&
+    !out.includes("IMAX")
+  )
+    out.unshift("IMAX");
+  if ((yes("4dx") || yes("cinema:4dx")) && !out.includes("4DX"))
+    out.push("4DX");
+  return out;
 }
 
 function addressOf(t) {
@@ -164,6 +216,7 @@ export function parseOverpass(json, lat, lon) {
       id: `${el.type}/${el.id}`,
       name,
       brand: detectBrand(t),
+      formats: detectFormats(t),
       address: addressOf(t),
       website: safeUrl(t.website || t["contact:website"]),
       hours: t.opening_hours || null,
@@ -213,8 +266,9 @@ const abortError = () => {
 };
 
 /**
- * Cari bioskop. Sumber dicoba berurutan, tetapi kalau yang sebelumnya belum menjawab setelah `hedgeMs`
- * (atau sudah gagal), sumber berikutnya langsung ikut. Jawaban valid pertama menang, sisanya dibatalkan.
+ * Cari bioskop. Server dicoba berurutan, tetapi kalau yang sebelumnya belum menjawab setelah `hedgeMs`
+ * (atau sudah gagal), server berikutnya langsung ikut. Jawaban valid pertama menang, sisanya dibatalkan.
+ * Dulu server dicoba satu per satu dan menunggu habis, jadi satu server mati = layar loading belasan detik.
  * @returns {Promise<{items: object[], fromCache: boolean}>}
  */
 export function fetchNearby(
@@ -365,7 +419,7 @@ export function fetchNearby(
                   )
                 : e,
             );
-            start(); // sumber ini gagal: jangan tunggu waktu balapan, langsung coba berikutnya
+            start(); // server ini gagal: jangan tunggu waktu balapan, langsung coba berikutnya
           },
         );
 

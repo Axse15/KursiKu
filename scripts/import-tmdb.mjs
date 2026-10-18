@@ -9,8 +9,8 @@
 //                                       dan film yang paling ditunggu. Menambah pilihan film dan bahan untuk "Paling populer")
 //
 // Token/kunci hanya dipakai di komputermu saat skrip ini jalan. Tidak masuk ke aplikasi web.
-// Jalankan supabase-v4.sql, supabase-v6.sql, dan supabase-v7.sql di Supabase SEBELUM menempel import.sql
-// (v6: film belum rilis tidak dijadwalkan. v7: kolom jumlah penonton dari Trakt).
+// Jalankan supabase-v4.sql, supabase-v6.sql, supabase-v7.sql, dan supabase-v9.sql di Supabase SEBELUM menempel import.sql
+// (v6: film belum rilis tidak dijadwalkan. v7: kolom jumlah penonton dari Trakt. v9: sutradara, produser, pemeran, klasifikasi usia).
 import fs from "node:fs";
 
 const API = "https://api.themoviedb.org/3";
@@ -231,6 +231,52 @@ export function idReleaseDate(details) {
   return dates[0] || null;
 }
 
+// Klasifikasi usia dari TMDB: sertifikasi Indonesia kalau ada, kalau tidak Amerika (PG-13, R, ...). Kosong kalau tidak ada.
+export function certificationOf(details) {
+  const list = details?.release_dates?.results || [];
+  const pick = (iso) =>
+    (list.find((r) => r.iso_3166_1 === iso)?.release_dates || [])
+      .map((x) => String(x.certification || "").trim())
+      .find(Boolean) || null;
+  return pick("ID") || pick("US");
+}
+
+const uniq = (arr) => [...new Set(arr.filter(Boolean))];
+const joined = (arr, max) => uniq(arr).slice(0, max).join(", ") || null;
+
+// Kru dan pemeran dari respons TMDB (append_to_response=credits). Semua bagian boleh kosong.
+export function creditsOf(details) {
+  const crew = details?.credits?.crew || [];
+  const by = (test) =>
+    crew.filter((c) => test(String(c.job || ""))).map((c) => c.name);
+  return {
+    genres: joined(
+      (details?.genres || []).map((g) => g.name),
+      6,
+    ),
+    director: joined(
+      by((j) => j === "Director"),
+      3,
+    ),
+    writers: joined(
+      by((j) => /^(Writer|Screenplay|Story|Novel|Author|Characters)$/.test(j)),
+      4,
+    ),
+    producers: joined(
+      by((j) => j === "Producer"),
+      4,
+    ),
+    production: joined(
+      (details?.production_companies || []).map((c) => c.name),
+      4,
+    ),
+    cast_members: (details?.credits?.cast || [])
+      .filter((c) => c.name)
+      .slice(0, 10)
+      .map((c) => ({ name: c.name, character: c.character || "" })),
+  };
+}
+
 // Campuran: sekitar idCount film Indonesia + sisanya film luar negeri yang sedang tayang di Indonesia.
 export async function fetchMovies(
   token,
@@ -330,7 +376,7 @@ export async function fetchMovies(
       `/movie/${m.id}`,
       {
         language: "id-ID",
-        append_to_response: isSoon ? "videos,release_dates" : "videos",
+        append_to_response: "videos,credits,release_dates",
         include_video_language: "id,en",
       },
       token,
@@ -383,6 +429,8 @@ export async function fetchMovies(
       imdb_rating: null,
       imdb_votes: null,
       age_rated: null,
+      certification: certificationOf(d),
+      ...creditsOf(d),
     });
     const item = items[items.length - 1];
     if (omdbOn && item.imdb_id) {
@@ -427,16 +475,19 @@ delete from movies m
 // clean = true: film lama yang tidak ada di daftar ini ikut dibuang (hanya yang belum punya pesanan sama sekali).
 export function buildSql(items, { clean = false } = {}) {
   const withW = items.some((m) => m.watchers != null); // kolom watchers dibuat oleh supabase-v7.sql
+  const jsonb = (v) =>
+    v && v.length ? `${esc(JSON.stringify(v))}::jsonb` : "null";
   const rows = items.map((m) => {
     const [from, to] = PALETTE[m.tmdb_id % PALETTE.length];
-    return `(${m.tmdb_id}, ${esc(m.title)}, ${esc(m.genre)}, ${m.duration_min}, 'NR', ${esc(m.synopsis)}, '${from}', '${to}', ${val(m.poster_url)}, ${val(m.backdrop_url)}, ${m.vote_average == null ? "null" : m.vote_average}, ${val(m.trailer_key)}, ${val(m.release_date)}, ${num(m.popularity)}, ${num(m.vote_count)}, ${val(m.imdb_id)}, ${num(m.imdb_rating)}, ${num(m.imdb_votes)}, ${val(m.age_rated)}${withW ? `, ${num(m.watchers)}` : ""})`;
+    return `(${m.tmdb_id}, ${esc(m.title)}, ${esc(m.genre)}, ${m.duration_min}, 'NR', ${esc(m.synopsis)}, '${from}', '${to}', ${val(m.poster_url)}, ${val(m.backdrop_url)}, ${m.vote_average == null ? "null" : m.vote_average}, ${val(m.trailer_key)}, ${val(m.release_date)}, ${num(m.popularity)}, ${num(m.vote_count)}, ${val(m.imdb_id)}, ${num(m.imdb_rating)}, ${num(m.imdb_votes)}, ${val(m.age_rated)}, ${val(m.genres)}, ${val(m.director)}, ${val(m.writers)}, ${val(m.producers)}, ${val(m.production)}, ${jsonb(m.cast_members)}, ${val(m.certification)}${withW ? `, ${num(m.watchers)}` : ""})`;
   });
 
   return `-- Dibuat otomatis dari TMDB oleh scripts/import-tmdb.mjs
 -- Aman dijalankan berulang: film yang sama diperbarui, bukan digandakan.
 insert into movies
   (tmdb_id, title, genre, duration_min, rating, synopsis, poster_from, poster_to, poster_url, backdrop_url, vote_average, trailer_key, release_date,
-   popularity, vote_count, imdb_id, imdb_rating, imdb_votes, age_rated${withW ? ", watchers" : ""})
+   popularity, vote_count, imdb_id, imdb_rating, imdb_votes, age_rated,
+   genres, director, writers, producers, production, cast_members, certification${withW ? ", watchers" : ""})
 values
 ${rows.join(",\n")}
 on conflict (tmdb_id) do update set
@@ -455,7 +506,14 @@ on conflict (tmdb_id) do update set
   imdb_id = coalesce(excluded.imdb_id, movies.imdb_id),
   imdb_rating = coalesce(excluded.imdb_rating, movies.imdb_rating),
   imdb_votes = coalesce(excluded.imdb_votes, movies.imdb_votes),
-  age_rated = coalesce(excluded.age_rated, movies.age_rated)${withW ? ",\n  watchers = excluded.watchers" : ""};
+  age_rated = coalesce(excluded.age_rated, movies.age_rated),
+  genres = coalesce(excluded.genres, movies.genres),
+  director = coalesce(excluded.director, movies.director),
+  writers = coalesce(excluded.writers, movies.writers),
+  producers = coalesce(excluded.producers, movies.producers),
+  production = coalesce(excluded.production, movies.production),
+  cast_members = coalesce(excluded.cast_members, movies.cast_members),
+  certification = coalesce(excluded.certification, movies.certification)${withW ? ",\n  watchers = excluded.watchers" : ""};
 
 ${clean ? cleanSql(items) : ""}-- Jadwal 7 hari ke depan di semua bioskop.
 -- Fungsi ini dibuat oleh supabase-cinema-auth.sql, jadi file itu harus dijalankan lebih dulu.

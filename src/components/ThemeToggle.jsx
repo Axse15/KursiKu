@@ -9,7 +9,7 @@ export default function ThemeToggle() {
       onClick={toggle}
       aria-label={toLight ? "Ganti ke tema terang" : "Ganti ke tema gelap"}
       title={toLight ? "Tema terang" : "Tema gelap"}
-      className="flex size-11 items-center justify-center rounded-full text-ink-2 hover:text-accent-ink"
+      className="flex size-11 items-center justify-center rounded-xl text-ink-2 transition-colors hover:bg-raised"
     >
       {toLight ? (
         // ikon bulan: sedang gelap, ketuk untuk terang
