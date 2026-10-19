@@ -6,6 +6,7 @@ const TOP = [
   "/bioskop",
   "/sedang-tayang",
   "/segera-hadir",
+  "/terlaris",
   "/riwayat",
   "/profil",
 ];

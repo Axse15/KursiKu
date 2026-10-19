@@ -14,12 +14,20 @@ import {
   fmtTime,
   rupiah,
 } from "../lib/config";
-import { firstName, useAuth } from "../lib/auth";
+import { firstName, rememberReturn, useAuth } from "../lib/auth";
 import { useProfile } from "../lib/profile";
 import { VALID_SEAT, isPremium, seatPrice, sortSeats } from "../lib/seats";
 import { makeCode, saveCode } from "../lib/booking";
 import { applyPromo, normalizeCode } from "../lib/promo";
 import { dealPercent } from "../lib/deals";
+import {
+  MIN_REDEEM,
+  POINT_VALUE,
+  maxRedeem,
+  pointsEarned,
+  pointsToRupiah,
+} from "../lib/points";
+import { usePoints } from "../lib/usePoints";
 import { METHODS, newPayment } from "../lib/payment";
 import PaymentPanel from "../components/PaymentPanel";
 import {
@@ -29,7 +37,66 @@ import {
   btnGhost,
   btnPrimary,
   fieldCls,
+  pageTitleCls,
 } from "../components/ui";
+
+// Kotak tukar poin di checkout. pts = null saat memuat atau kalau fungsi my_points belum ada (supabase-v10.sql belum dijalankan).
+function PointsBox({ pts, balance, maxPts, pointsUsed, wanted, onChange }) {
+  const on = pointsUsed > 0;
+  let note;
+  if (!pts) note = "Saldo poin belum bisa dimuat.";
+  else if (balance < MIN_REDEEM)
+    note = `Saldo ${balance} poin. Poin bisa ditukar mulai ${MIN_REDEEM} poin (${rupiah(pointsToRupiah(MIN_REDEEM))}).`;
+  else if (maxPts === 0)
+    note =
+      "Total pesanan ini terlalu kecil untuk menukar poin (poin menutup maksimal 50% tagihan).";
+  else
+    note = `Saldo ${balance} poin. Maksimal ${maxPts} poin (${rupiah(pointsToRupiah(maxPts))}) untuk pesanan ini.`;
+
+  return (
+    <div className="rounded-xl border-2 border-edge bg-panel p-3">
+      <label
+        className={`flex min-h-11 items-center gap-3 text-sm font-semibold ${maxPts > 0 ? "" : "opacity-60"}`}
+      >
+        <input
+          type="checkbox"
+          checked={on}
+          disabled={maxPts === 0}
+          onChange={(e) => onChange(e.target.checked ? maxPts : 0)}
+          className="size-4 accent-[var(--color-accent-ink)]"
+        />
+        Pakai poin
+      </label>
+      <p className="text-xs text-muted">{note}</p>
+      {on && maxPts > MIN_REDEEM && (
+        <div className="mt-3">
+          <label
+            htmlFor="poin-pakai"
+            className="flex justify-between text-sm font-semibold text-ink-2"
+          >
+            <span>Poin dipakai</span>
+            <span className="tnum">
+              {pointsUsed} poin = −{rupiah(pointsToRupiah(pointsUsed))}
+            </span>
+          </label>
+          <input
+            id="poin-pakai"
+            type="range"
+            min={MIN_REDEEM}
+            max={maxPts}
+            step={10}
+            value={Math.min(Math.max(wanted, MIN_REDEEM), maxPts)}
+            onChange={(e) => onChange(Number(e.target.value))}
+            className="mt-1 h-7 w-full cursor-pointer accent-[var(--color-accent-ink)]"
+          />
+        </div>
+      )}
+      <p className="mt-2 text-xs text-faint">
+        1 poin = {rupiah(POINT_VALUE)}. Dapat 10 poin tiap kursi yang dibeli.
+      </p>
+    </div>
+  );
+}
 
 export default function Checkout() {
   const { showtimeId } = useParams();
@@ -65,9 +132,9 @@ export default function Checkout() {
     [showtimeId],
   );
 
-  const { user, loading: authLoading, authError, signIn } = useAuth();
+  const { user, loading: authLoading, authError } = useAuth();
   const { profile } = useProfile();
-  // null = belum diketik, jadi nama otomatis: nama panggilan di profil, atau nama depan akun Google
+  // null = belum diketik, jadi nama otomatis: nama panggilan di profil, atau nama depan akunmu
   const [typed, setTyped] = useState(null);
   const name =
     typed ?? (user ? (profile?.nickname || firstName(user)).slice(0, 30) : "");
@@ -84,6 +151,10 @@ export default function Checkout() {
   const [promo, setPromo] = useState(null);
   const [promoMsg, setPromoMsg] = useState(null); // { ok, text }
   const [promoBusy, setPromoBusy] = useState(false);
+
+  // poin: ptsWanted = yang diminta pembeli; yang benar-benar dipakai dibatasi saldo dan 50% tagihan (lihat pointsUsed di bawah)
+  const { data: pts, reload: reloadPoints } = usePoints();
+  const [ptsWanted, setPtsWanted] = useState(0);
 
   if (error) return <ErrorBox message={error} onRetry={reload} />;
   if (loading && !showtime) return <Skeleton className="h-72" />;
@@ -112,7 +183,15 @@ export default function Checkout() {
   };
   const priced = promo ? applyPromo(promo, ctx) : null;
   const discount = priced?.ok ? priced.discount : 0;
-  const total = subtotal - discount;
+  const afterPromo = subtotal - discount;
+
+  // Poin ditukar dari sisa tagihan setelah diskon film dan promo. Batasnya ikut menyusut kalau promo dipasang.
+  const balance = pts?.balance ?? 0;
+  const maxPts = maxRedeem(balance, afterPromo);
+  const pointsUsed =
+    ptsWanted >= MIN_REDEEM && maxPts > 0 ? Math.min(ptsWanted, maxPts) : 0;
+  const pointsDiscount = pointsToRupiah(pointsUsed);
+  const total = afterPromo - pointsDiscount;
 
   async function applyCode() {
     const code = normalizeCode(promoInput);
@@ -216,7 +295,7 @@ export default function Checkout() {
     await new Promise((r) => setTimeout(r, 1200)); // simulasi proses pembayaran
 
     const code = makeCode();
-    const rows = seats.map((seat_code) => ({
+    const rows = seats.map((seat_code, i) => ({
       booking_code: code,
       showtime_id: Number(showtimeId),
       seat_code,
@@ -224,6 +303,8 @@ export default function Checkout() {
       user_id: user.id, // database menolak user_id milik orang lain, dan menolak pesanan tanpa login
       promo_code: promo ? promo.code : null,
       deal_percent: pct, // dicatat supaya total tiket tidak berubah kalau aturan diskon kelak diganti
+      // poin yang ditukar dicatat di kursi pertama saja (jumlahnya dijumlahkan per kode booking). Kolom ini baru ada setelah supabase-v10.sql.
+      ...(i === 0 && pointsUsed > 0 ? { points_used: pointsUsed } : {}),
     }));
 
     // Satu insert = satu transaksi: kalau salah satu kursi bentrok, SEMUA ditolak.
@@ -246,6 +327,16 @@ export default function Checkout() {
             : "Kode promo ini sudah tidak berlaku hari ini.") +
             " Total dikembalikan ke harga normal. Periksa lagi lalu bayar.",
         );
+      } else if (
+        /points_insufficient|points_login/.test(insertError.message || "")
+      ) {
+        // saldo poin ternyata kurang (mis. sudah terpakai di tab lain). Tidak ada kursi yang tersimpan.
+        reloadPoints();
+        setPtsWanted(0);
+        setStep("form");
+        setFormError(
+          "Saldo poinmu tidak cukup untuk penukaran ini. Total dikembalikan tanpa potongan poin. Periksa lagi lalu bayar.",
+        );
       } else if (insertError.code === "42501")
         setFormError(
           "Sesi login kamu berakhir atau tidak sah. Masuk lagi lalu coba bayar ulang.",
@@ -255,7 +346,10 @@ export default function Checkout() {
     }
 
     saveCode(code);
-    navigate(`/tiket/${code}`, { replace: true });
+    navigate(`/tiket/${code}`, {
+      replace: true,
+      state: { earned: pointsEarned(seats.length) },
+    });
   }
 
   if (conflict) {
@@ -305,7 +399,7 @@ export default function Checkout() {
             </li>
           ))}
         </ul>
-        {(dealDiscount > 0 || discount > 0) && (
+        {(dealDiscount > 0 || discount > 0 || pointsDiscount > 0) && (
           <div className="tnum mt-3 space-y-1 border-t border-line pt-3 text-sm text-ok">
             {dealDiscount > 0 && (
               <p className="flex justify-between">
@@ -319,16 +413,29 @@ export default function Checkout() {
                 <span>− {rupiah(discount)}</span>
               </p>
             )}
+            {pointsDiscount > 0 && (
+              <p className="flex justify-between">
+                <span>Poin {pointsUsed}</span>
+                <span>− {rupiah(pointsDiscount)}</span>
+              </p>
+            )}
           </div>
         )}
         <p
-          className={`mt-3 flex items-baseline justify-between ${dealDiscount > 0 || discount > 0 ? "" : "border-t border-line pt-3"}`}
+          className={`mt-3 flex items-baseline justify-between ${dealDiscount > 0 || discount > 0 || pointsDiscount > 0 ? "" : "border-t border-line pt-3"}`}
         >
           <span className="font-semibold">Total</span>
           <span className="tnum text-2xl font-extrabold leading-none">
             {rupiah(total)}
           </span>
         </p>
+        {user && (
+          <p className="mt-2 text-xs text-muted">
+            Kamu akan dapat{" "}
+            <strong className="tnum">+{pointsEarned(seats.length)} poin</strong>{" "}
+            dari pesanan ini.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -338,9 +445,7 @@ export default function Checkout() {
   if (!user) {
     return (
       <div className="mx-auto max-w-xl space-y-6">
-        <h1 className="text-4xl font-extrabold tracking-tight">
-          Ringkasan pesanan
-        </h1>
+        <h1 className={pageTitleCls}>Ringkasan pesanan</h1>
         {summary}
         <div
           role="region"
@@ -351,8 +456,8 @@ export default function Checkout() {
             Masuk dulu untuk memesan
           </h2>
           <p className="mt-2 text-sm text-ink-2">
-            Tiket hanya bisa dibeli dengan akun Google, supaya pesananmu
-            tersimpan di akun dan bisa dibuka lagi dari perangkat mana pun.
+            Tiket hanya bisa dibeli dengan akun, supaya pesananmu tersimpan,
+            poinnya terhitung, dan bisa dibuka lagi dari perangkat mana pun.
             Setelah masuk, kamu kembali ke halaman ini dan kursi pilihanmu tetap
             ada.
           </p>
@@ -362,9 +467,12 @@ export default function Checkout() {
             </p>
           )}
           <div className="mt-4 flex flex-wrap gap-3">
-            <button type="button" onClick={signIn} className={btnPrimary}>
-              Masuk dengan Google
-            </button>
+            <Link to="/masuk" onClick={rememberReturn} className={btnPrimary}>
+              Masuk
+            </Link>
+            <Link to="/daftar" onClick={rememberReturn} className={btnGhost}>
+              Daftar
+            </Link>
             <button
               type="button"
               onClick={() => navigate(-1)}
@@ -383,7 +491,7 @@ export default function Checkout() {
       onSubmit={proceed}
       className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_23rem] lg:gap-x-12"
     >
-      <h1 className="text-4xl font-extrabold tracking-tight lg:col-span-2">
+      <h1 className={`${pageTitleCls} lg:col-span-2`}>
         {step === "pay" ? "Pembayaran" : "Ringkasan pesanan"}
       </h1>
 
@@ -427,7 +535,7 @@ export default function Checkout() {
               className={`mt-1 ${fieldCls}`}
             />
             <p className="mt-1 text-xs text-faint">
-              Diambil dari profilmu (atau akun Google), boleh kamu ganti. Nama
+              Diambil dari profilmu (atau nama akunmu), boleh kamu ganti. Nama
               ini ikut tersimpan di data pesanan.
             </p>
           </div>
@@ -500,6 +608,15 @@ export default function Checkout() {
               )}
             </p>
           </div>
+
+          <PointsBox
+            pts={pts}
+            balance={balance}
+            maxPts={maxPts}
+            pointsUsed={pointsUsed}
+            wanted={ptsWanted}
+            onChange={setPtsWanted}
+          />
 
           <fieldset>
             <legend className="text-sm font-semibold text-ink-2">

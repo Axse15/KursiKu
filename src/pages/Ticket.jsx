@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase, unwrap } from "../lib/supabase";
 import { useAsync } from "../lib/useAsync";
@@ -9,10 +9,11 @@ import { usePromoMap } from "../lib/usePromos";
 import { Empty, ErrorBox, Skeleton, btnGhost } from "../components/ui";
 
 export const BOOKING_SELECT =
-  "booking_code, seat_code, customer_name, promo_code, deal_percent, created_at, showtimes(starts_at, studio, price_regular, price_premium, movies(title), cinemas(name, city))";
+  "booking_code, seat_code, customer_name, promo_code, deal_percent, points_used, created_at, showtimes(starts_at, studio, price_regular, price_premium, movies(title), cinemas(name, city))";
 
 export default function Ticket() {
   const { code } = useParams();
+  const earned = useLocation().state?.earned || 0; // poin baru, hanya dikirim Checkout sesaat setelah bayar
 
   const {
     data: rows,
@@ -50,17 +51,20 @@ export default function Ticket() {
   const showtime = rows[0].showtimes;
   const seats = sortSeats(rows.map((r) => r.seat_code));
   const promo = promoCode ? promoMap?.[promoCode] || null : null;
-  const { dealPercent, dealDiscount, discount, total } = orderTotals(
-    seats,
-    showtime,
-    promo,
-    rows[0].deal_percent || 0,
-  );
+  const pointsUsed = rows.reduce((sum, r) => sum + (r.points_used || 0), 0); // dicatat di baris kursi pertama
+  const { dealPercent, dealDiscount, discount, pointsDiscount, total } =
+    orderTotals(seats, showtime, promo, rows[0].deal_percent || 0, pointsUsed);
 
   return (
     <section>
       <p className="mb-6 rounded-xl border-2 border-ok/40 bg-ok-bg p-3 text-sm font-medium text-ok print:hidden">
         Pembayaran simulasi berhasil. Ini e-tiket kamu.
+        {earned > 0 && (
+          <>
+            {" "}
+            Kamu dapat <strong className="tnum">+{earned} poin</strong>.
+          </>
+        )}
       </p>
 
       <div className="print-ticket mx-auto max-w-3xl overflow-hidden nb-card md:flex">
@@ -101,6 +105,11 @@ export default function Ticket() {
               {discount > 0 && (
                 <dd className="tnum text-xs text-muted">
                   Promo {promoCode} − {rupiah(discount)}
+                </dd>
+              )}
+              {pointsDiscount > 0 && (
+                <dd className="tnum text-xs text-muted">
+                  Poin {pointsUsed} − {rupiah(pointsDiscount)}
                 </dd>
               )}
               {promoCode && !promo && promoMap && (

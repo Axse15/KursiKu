@@ -12,6 +12,10 @@ export const btnGhost =
 export const fieldCls =
   "min-h-11 w-full rounded-xl border-2 border-edge bg-panel px-3 text-sm text-ink placeholder:text-faint focus-visible:shadow-nb";
 
+// Judul halaman (h1) untuk halaman tanpa kepala berwarna: Riwayat, Profil, Pembayaran. Ukurannya sama dengan PageHead.
+export const pageTitleCls =
+  "font-display text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl";
+
 // Warna petak bento (nilai sebenarnya ada di index.css, berganti otomatis di tema gelap)
 export const TONES = {
   yellow: "bg-tile-yellow",
@@ -89,6 +93,15 @@ export function ErrorBox({ message, onRetry }) {
     >
       <p className="font-semibold text-danger">Terjadi kesalahan</p>
       <p className="mt-1 text-ink-2">{message}</p>
+      {/* kesalahan khas kalau kode baru sudah dipasang tapi file SQL-nya belum dijalankan di Supabase */}
+      {/points_used|my_points|movie_sales|point_events/.test(
+        String(message),
+      ) && (
+        <p className="mt-1 text-ink-2">
+          Sepertinya file <code>supabase-v10.sql</code> belum dijalankan di
+          Supabase SQL Editor.
+        </p>
+      )}
       {onRetry && (
         <button
           onClick={onRetry}
@@ -186,7 +199,7 @@ export function Poster({
             className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 to-transparent"
           />
           {!compact && (
-            <div className="absolute inset-x-0 bottom-0 p-3">
+            <div className="absolute inset-x-0 bottom-0 p-3 pb-9">
               <span className="font-display text-xl font-extrabold leading-tight tracking-tight text-white">
                 {movie.title}
               </span>

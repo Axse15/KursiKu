@@ -29,6 +29,9 @@ import NowShowing from "./pages/NowShowing";
 import ComingSoon from "./pages/ComingSoon";
 import Cinemas from "./pages/Cinemas";
 import SearchPage from "./pages/SearchPage";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Terlaris from "./pages/Terlaris";
 
 // Atribusi wajib dari TMDB. Taruh logo resmi TMDB di public/tmdb-logo.svg (kalau belum ada, logo disembunyikan).
 function TmdbCredit() {
@@ -56,19 +59,27 @@ const NAV = [
   ["/sedang-tayang", "Sedang tayang"],
   ["/segera-hadir", "Coming soon"],
   ["/promo", "Promo"],
+  ["/terlaris", "Terlaris"],
   ["/riwayat", "Riwayat"],
   ["/profil", "Profil"],
 ];
 
 // halaman daftar dibuat lebih lebar (tata letak bento); halaman lain (kursi, bayar, tiket) tetap sempit agar nyaman dibaca
-const WIDE = ["/", "/bioskop", "/sedang-tayang", "/segera-hadir", "/cari"];
+const WIDE = [
+  "/",
+  "/bioskop",
+  "/sedang-tayang",
+  "/segera-hadir",
+  "/cari",
+  "/terlaris",
+];
 
 function Layout({ children }) {
   const { pathname } = useLocation();
   const width = WIDE.includes(pathname) ? "max-w-6xl" : "max-w-5xl";
   const navRef = useRef(null);
 
-  // HP: tujuh menu tidak muat satu baris, jadi menu digulir supaya item yang aktif terlihat
+  // HP: delapan menu tidak muat satu baris, jadi menu digulir supaya item yang aktif terlihat
   useEffect(() => {
     const nav = navRef.current;
     const active = nav?.querySelector('[aria-current="page"]');
@@ -207,6 +218,13 @@ export default function App() {
                 <Route path="/riwayat" element={<History />} />
                 <Route path="/profil" element={<Profile />} />
                 <Route path="/promo" element={<Promo />} />
+                <Route path="/terlaris" element={<Terlaris />} />
+                <Route
+                  path="/spk"
+                  element={<Navigate to="/terlaris" replace />}
+                />
+                <Route path="/masuk" element={<Login />} />
+                <Route path="/daftar" element={<Register />} />
                 <Route path="/bioskop" element={<Cinemas />} />
                 <Route path="/sedang-tayang" element={<NowShowing />} />
                 <Route path="/segera-hadir" element={<ComingSoon />} />

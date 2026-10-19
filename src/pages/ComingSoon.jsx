@@ -117,7 +117,7 @@ export default function ComingSoon() {
             <h2 id="daftar-soon" className="sr-only">
               Daftar film coming soon
             </h2>
-            <div className="nb-flat grid grid-cols-2 gap-3 p-4">
+            <div className="grid grid-cols-2 gap-3 sm:nb-flat sm:p-4">
               <div>
                 <label
                   htmlFor="kategori"

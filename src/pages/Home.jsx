@@ -5,6 +5,7 @@ import { useFilms } from "../lib/films";
 import { fmtDayChip, fmtWhen, rupiah } from "../lib/config";
 import { ratingOf } from "../lib/rank";
 import { buildFeatured } from "../lib/featured";
+import { useRanking } from "../lib/useRanking";
 import { fmtReleaseShort, untilLabel } from "../lib/release";
 import Banner from "../components/Banner";
 import MovieCard from "../components/MovieCard";
@@ -19,6 +20,7 @@ import {
 import { GRID } from "./NowShowing";
 
 const PREVIEW = 10; // jumlah kartu di beranda; selebihnya lewat "Lihat semua"
+const TOP_N = 5; // jumlah film di petak "Film terlaris"
 
 // Tumpukan poster kecil di petak "Sedang tayang" / "Coming soon"
 function PosterStack({ movies }) {
@@ -59,6 +61,91 @@ function CountTile({ to, tone, title, count, unit, hint, movies }) {
   );
 }
 
+// Petak "Film terlaris" di beranda: rekomendasi utama + 5 teratas. Kalau datanya gagal dimuat, petak disembunyikan
+// (beranda tidak boleh ikut error hanya karena peringkat). Isi lengkapnya di halaman Terlaris.
+function TopSellers({ ranking }) {
+  const { rows, loading, error } = ranking;
+  if (error) return null;
+  if (loading || !rows) return <Skeleton className="h-64" />;
+  if (rows.length === 0) return null;
+  const best = rows[0];
+  const list = rows.slice(0, TOP_N);
+  return (
+    <section
+      aria-labelledby="terlaris-home"
+      className="grid gap-5 lg:grid-cols-12"
+    >
+      <div className="nb-card flex gap-4 bg-tile-yellow p-5 sm:gap-5 lg:col-span-5">
+        <Poster
+          movie={best.movie}
+          showMeta={false}
+          compact
+          className="aspect-[2/3] w-24 shrink-0 self-start rounded-lg shadow-nb sm:w-28"
+        />
+        <div className="min-w-0 self-center">
+          <h2 id="terlaris-home" className="text-sm font-bold text-ink-2">
+            Rekomendasi untukmu
+          </h2>
+          <Link
+            to={`/film/${best.movie.id}`}
+            className="mt-1 block font-display text-2xl font-extrabold leading-tight tracking-tight hover:underline sm:text-3xl"
+          >
+            {best.movie.title}
+          </Link>
+          {best.values.tickets > 0 && (
+            <p className="tnum mt-1 text-sm">
+              <strong>{best.values.tickets}</strong> tiket terjual dalam 30 hari
+              terakhir
+            </p>
+          )}
+          <Link
+            to={`/film/${best.movie.id}`}
+            className="nb-lift mt-3 inline-flex min-h-11 items-center rounded-xl border-2 border-edge bg-ink px-5 text-sm font-bold text-page shadow-nb"
+          >
+            Lihat jadwal
+          </Link>
+        </div>
+      </div>
+
+      <div className="nb-card bg-tile-blue p-5 lg:col-span-7">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h2 className="font-display text-xl font-extrabold leading-tight tracking-tight">
+            Film terlaris
+          </h2>
+          <Link
+            to="/terlaris"
+            className="inline-flex min-h-11 items-center text-sm font-bold underline"
+          >
+            Lihat peringkat lengkap <span aria-hidden="true">›</span>
+          </Link>
+        </div>
+        <ol className="mt-2 space-y-1">
+          {list.map((r) => (
+            <li key={r.movie.id}>
+              <Link
+                to={`/film/${r.movie.id}`}
+                className="flex min-h-11 items-center gap-3 rounded-lg px-1 hover:bg-white/30"
+              >
+                <span className="tnum grid size-7 shrink-0 place-items-center rounded-lg border-2 border-edge bg-panel text-sm font-extrabold">
+                  {r.rank}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-sm font-bold">
+                  {r.movie.title}
+                </span>
+                <span className="tnum shrink-0 text-xs text-ink-2">
+                  {r.values.tickets > 0
+                    ? `${r.values.tickets} tiket`
+                    : "Belum ada penjualan"}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
 export default function Home() {
   const [tab, setTab] = useState("now"); // 'now' | 'soon'
   const {
@@ -80,6 +167,7 @@ export default function Home() {
     nowShowing,
     upcoming,
   } = useFilms(cinemaId);
+  const ranking = useRanking(); // dipanggil sebelum return awal supaya urutan hook tetap
 
   if (cinemaError) {
     return (
@@ -265,6 +353,9 @@ export default function Home() {
           )}
         </section>
       </div>
+
+      {/* film terlaris + rekomendasi */}
+      <TopSellers ranking={ranking} />
 
       {/* pilihan: sedang tayang / coming soon */}
       <section aria-labelledby="pilihan-judul">

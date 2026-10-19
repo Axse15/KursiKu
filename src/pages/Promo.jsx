@@ -8,6 +8,7 @@ import { releaseInfo } from "../lib/release";
 import { collectSaleFilms } from "../lib/saleFilms";
 import { usePromos } from "../lib/usePromos";
 import MovieCard from "../components/MovieCard";
+import PageHead from "../components/PageHead";
 import {
   Empty,
   ErrorBox,
@@ -65,15 +66,12 @@ export default function Promo() {
 
   return (
     <div className="space-y-10">
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-          Harga &amp; promo
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          Semua harga dan promo di sini fiktif. Tidak ada uang sungguhan yang
-          diproses.
-        </p>
-      </div>
+      <PageHead
+        id="promo-halaman-judul"
+        title="Harga & promo"
+        tone="pink"
+        sub="Semua harga dan promo di sini fiktif. Tidak ada uang sungguhan yang diproses."
+      />
 
       <section aria-labelledby="film-diskon-judul">
         <SectionTitle

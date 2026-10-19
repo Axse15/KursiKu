@@ -246,7 +246,7 @@ export default function NowShowing() {
           <h2 id="daftar-judul" className="sr-only">
             Daftar film sedang tayang
           </h2>
-          <div className="nb-flat grid grid-cols-2 gap-3 p-4 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:nb-flat sm:grid-cols-3 sm:p-4">
             <div>
               <label
                 htmlFor="kategori"
@@ -291,7 +291,7 @@ export default function NowShowing() {
                 ))}
               </select>
             </div>
-            <div className="col-span-2 lg:col-span-1">
+            <div className="col-span-2 sm:col-span-1">
               <label htmlFor="urut" className="text-xs font-bold text-muted">
                 Urutkan
               </label>

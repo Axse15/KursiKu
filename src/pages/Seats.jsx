@@ -41,7 +41,7 @@ function LoginNote() {
   if (loading || user) return null;
   return (
     <p className="mt-2 text-xs text-muted">
-      Kamu akan diminta masuk dengan Google sebelum membayar. Kursi pilihanmu
+      Kamu akan diminta masuk (atau daftar) sebelum membayar. Kursi pilihanmu
       tetap tersimpan.
     </p>
   );

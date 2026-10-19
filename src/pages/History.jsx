@@ -1,17 +1,23 @@
 import { Link } from "react-router-dom";
 import { supabase, unwrap } from "../lib/supabase";
 import { useAsync } from "../lib/useAsync";
-import { useAuth } from "../lib/auth";
+import { rememberReturn, useAuth } from "../lib/auth";
 import { getCodes } from "../lib/booking";
 import { cinemaLabel, fmtDate, fmtTime, fmtWhen } from "../lib/config";
 import { sortSeats } from "../lib/seats";
-import { Empty, ErrorBox, Skeleton, Sticker } from "../components/ui";
+import {
+  Empty,
+  ErrorBox,
+  Skeleton,
+  Sticker,
+  pageTitleCls,
+} from "../components/ui";
 import { BOOKING_SELECT } from "./Ticket";
 
 const CODE_OK = /^KSK-[A-Z0-9]{6}$/; // kode dari localStorage disaring dulu sebelum masuk ke filter query
 
 export default function History() {
-  const { enabled, user, loading: authLoading, signIn } = useAuth();
+  const { enabled, user, loading: authLoading } = useAuth();
 
   const {
     data: orders,
@@ -35,13 +41,16 @@ export default function History() {
     // Urutan: yang TERAKHIR DIBELI di atas (bukan menurut jam tayang), supaya pesanan yang baru dibayar langsung kelihatan.
     const map = {};
     for (const r of rows) {
-      (map[r.booking_code] ||= {
+      const o = (map[r.booking_code] ||= {
         code: r.booking_code,
         showtime: r.showtimes,
         seats: [],
         boughtAt: r.created_at,
         promo: r.promo_code,
-      }).seats.push(r.seat_code);
+        points: 0,
+      });
+      o.seats.push(r.seat_code);
+      o.points += r.points_used || 0;
     }
     const at = (o) => (o.boughtAt ? Date.parse(o.boughtAt) : 0);
     return Object.values(map).sort(
@@ -95,10 +104,11 @@ export default function History() {
                   Kursi {sortSeats(o.seats).join(", ")} ·{" "}
                   <span className="tnum text-muted">{o.code}</span>
                 </span>
-                {(o.boughtAt || o.promo) && (
+                {(o.boughtAt || o.promo || o.points > 0) && (
                   <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-faint">
                     {o.boughtAt && <span>Dibeli {fmtWhen(o.boughtAt)}</span>}
                     {o.promo && <Sticker>Promo {o.promo}</Sticker>}
+                    {o.points > 0 && <Sticker>Poin −{o.points}</Sticker>}
                   </span>
                 )}
               </span>
@@ -110,24 +120,21 @@ export default function History() {
 
   return (
     <section>
-      <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-        Riwayat pesanan
-      </h1>
+      <h1 className={pageTitleCls}>Riwayat pesanan</h1>
       <p className="mb-6 mt-3 max-w-3xl text-sm text-muted">
         {user ? (
-          "Menampilkan pesanan akun Google kamu, yang terakhir dibeli di paling atas, ditambah tiket lama yang dibuat di browser ini sebelum login diwajibkan."
+          "Menampilkan pesanan akunmu, yang terakhir dibeli di paling atas, ditambah tiket lama yang dibuat di browser ini sebelum login diwajibkan."
         ) : (
           <>
-            Pemesanan sekarang memakai akun Google, jadi riwayat lengkapmu ada
-            di akun.{" "}
+            Pemesanan memakai akun, jadi riwayat lengkapmu ada di akun.{" "}
             {enabled && (
-              <button
-                type="button"
-                onClick={signIn}
+              <Link
+                to="/masuk"
+                onClick={rememberReturn}
                 className="font-semibold text-accent-ink underline"
               >
-                Masuk dengan Google
-              </button>
+                Masuk
+              </Link>
             )}{" "}
             untuk melihatnya. Tiket lama yang tersimpan di browser ini tetap
             tampil di bawah.
