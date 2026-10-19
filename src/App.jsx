@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Link,
   NavLink,
@@ -51,9 +51,11 @@ function TmdbCredit() {
 }
 
 const NAV = [
+  ["/", "Home"],
   ["/bioskop", "Bioskop"],
   ["/sedang-tayang", "Sedang tayang"],
   ["/segera-hadir", "Coming soon"],
+  ["/promo", "Promo"],
   ["/riwayat", "Riwayat"],
   ["/profil", "Profil"],
 ];
@@ -62,9 +64,21 @@ const NAV = [
 const WIDE = ["/", "/bioskop", "/sedang-tayang", "/segera-hadir", "/cari"];
 
 function Layout({ children }) {
-  const width = WIDE.includes(useLocation().pathname)
-    ? "max-w-6xl"
-    : "max-w-5xl";
+  const { pathname } = useLocation();
+  const width = WIDE.includes(pathname) ? "max-w-6xl" : "max-w-5xl";
+  const navRef = useRef(null);
+
+  // HP: tujuh menu tidak muat satu baris, jadi menu digulir supaya item yang aktif terlihat
+  useEffect(() => {
+    const nav = navRef.current;
+    const active = nav?.querySelector('[aria-current="page"]');
+    if (!nav || !active || nav.scrollWidth <= nav.clientWidth) return;
+    const left =
+      active.getBoundingClientRect().left -
+      nav.getBoundingClientRect().left +
+      nav.scrollLeft;
+    nav.scrollTo({ left: left - (nav.clientWidth - active.clientWidth) / 2 });
+  }, [pathname]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -100,6 +114,7 @@ function Layout({ children }) {
           </div>
 
           <nav
+            ref={navRef}
             aria-label="Menu utama"
             className="-mx-1 mt-2 flex gap-1.5 overflow-x-auto px-1 pb-1"
           >
@@ -107,6 +122,7 @@ function Layout({ children }) {
               <NavLink
                 key={to}
                 to={to}
+                end={to === "/"} // Home hanya aktif di beranda, bukan di semua halaman
                 className={({ isActive }) =>
                   `flex min-h-10 shrink-0 items-center rounded-xl border-2 px-3.5 text-sm font-bold transition-colors ${
                     isActive
