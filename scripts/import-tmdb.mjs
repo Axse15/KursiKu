@@ -12,17 +12,18 @@
 // Jalankan supabase-v4.sql, supabase-v6.sql, supabase-v7.sql, dan supabase-v9.sql di Supabase SEBELUM menempel import.sql
 // (v6: film belum rilis tidak dijadwalkan. v7: kolom jumlah penonton dari Trakt. v9: sutradara, produser, pemeran, klasifikasi usia).
 import fs from "node:fs";
+import { pathToFileURL } from "node:url";
 
 const API = "https://api.themoviedb.org/3";
 const IMG = "https://image.tmdb.org/t/p";
-const COUNT = 1000;
-const ID_COUNT = 1000; // target film Indonesia dari COUNT (sisanya film luar negeri)
-const UPCOMING_COUNT = 1000; // film yang belum rilis (tag "Segera hadir"), di luar COUNT
-const UPCOMING_ID = 1000; // target film Indonesia dari UPCOMING_COUNT
-const TRAKT_NOW_EXTRA = 1000; // film tren dari Trakt yang ditambahkan ke "sedang tayang" (hanya yang rilis dalam NOW_WINDOW_DAYS hari terakhir)
-const TRAKT_SOON_EXTRA = 1000; // film "paling ditunggu" dari Trakt yang ditambahkan ke "Segera hadir"
-const NOW_WINDOW_DAYS = 1000;
-const SOON_WINDOW_DAYS = 1000;
+export const COUNT = 2000;
+export const ID_COUNT = 2000; // target film Indonesia dari COUNT (sisanya film luar negeri)
+export const UPCOMING_COUNT = 2000; // film yang belum rilis (tag "Segera hadir"), di luar COUNT
+export const UPCOMING_ID = 3000; // target film Indonesia dari UPCOMING_COUNT
+const TRAKT_NOW_EXTRA = 6000; // film tren dari Trakt yang ditambahkan ke "sedang tayang" (hanya yang rilis dalam NOW_WINDOW_DAYS hari terakhir)
+const TRAKT_SOON_EXTRA = 4000; // film "paling ditunggu" dari Trakt yang ditambahkan ke "Segera hadir"
+const NOW_WINDOW_DAYS = 2000;
+const SOON_WINDOW_DAYS = 2000;
 
 // warna cadangan kalau gambar poster gagal dimuat
 const PALETTE = [
@@ -472,6 +473,42 @@ delete from movies m
 `;
 }
 
+// Satu film dalam bentuk objek JSON untuk fungsi sync_movies di Supabase (dipakai scripts/sync-tmdb.mjs).
+// Nama kolomnya sama dengan yang ditulis buildSql ke import.sql.
+export function toRow(m) {
+  const [from, to] = PALETTE[m.tmdb_id % PALETTE.length];
+  const v = (x) => (x === undefined || x === "" ? null : x);
+  return {
+    tmdb_id: m.tmdb_id,
+    title: m.title,
+    genre: m.genre,
+    duration_min: m.duration_min,
+    synopsis: m.synopsis,
+    poster_from: from,
+    poster_to: to,
+    poster_url: v(m.poster_url),
+    backdrop_url: v(m.backdrop_url),
+    vote_average: v(m.vote_average),
+    trailer_key: v(m.trailer_key),
+    release_date: v(m.release_date),
+    popularity: v(m.popularity),
+    vote_count: v(m.vote_count),
+    imdb_id: v(m.imdb_id),
+    imdb_rating: v(m.imdb_rating),
+    imdb_votes: v(m.imdb_votes),
+    age_rated: v(m.age_rated),
+    genres: v(m.genres),
+    director: v(m.director),
+    writers: v(m.writers),
+    producers: v(m.producers),
+    production: v(m.production),
+    cast_members:
+      m.cast_members && m.cast_members.length ? m.cast_members : null,
+    certification: v(m.certification),
+    watchers: v(m.watchers),
+  };
+}
+
 // clean = true: film lama yang tidak ada di daftar ini ikut dibuang (hanya yang belum punya pesanan sama sekali).
 export function buildSql(items, { clean = false } = {}) {
   const withW = items.some((m) => m.watchers != null); // kolom watchers dibuat oleh supabase-v7.sql
@@ -561,8 +598,11 @@ export async function run() {
     );
 }
 
-// Supaya bisa diuji tanpa menjalankan jaringan sungguhan.
-if (!globalThis.__TMDB_TEST__) {
+// Hanya jalan kalau file ini yang dipanggil langsung (node scripts/import-tmdb.mjs), bukan saat di-import skrip lain
+// seperti sync-tmdb.mjs. __TMDB_TEST__ = supaya bisa diuji tanpa menjalankan jaringan sungguhan.
+const isMain =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (!globalThis.__TMDB_TEST__ && isMain) {
   run().catch((e) => {
     console.error("Gagal:", e.message);
     process.exit(1);

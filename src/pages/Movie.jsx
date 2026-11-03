@@ -224,9 +224,8 @@ export default function Movie() {
 
             {showtimes.length === 0 ? (
               <Empty title="Belum ada jadwal">
-                Untuk pembuat web: jalankan{" "}
-                <code>select refresh_showtimes(7);</code> di Supabase SQL
-                Editor.
+                Jadwal dibuat otomatis setiap hari. Coba muat ulang halaman
+                beberapa saat lagi.
               </Empty>
             ) : list.length === 0 ? (
               <Empty title={`Film ini belum tayang di ${selected.name}`}>
@@ -405,8 +404,7 @@ function FilmFacts({ movie, age }) {
         {!hasCrew && (
           <p className="mt-3 text-sm text-muted">
             Data sutradara, produser, penulis, produksi, dan pemeran belum
-            tersedia untuk film ini. Untuk pembuat web: jalankan{" "}
-            <code>supabase-v9.sql</code>, lalu impor ulang TMDB.
+            tersedia untuk film ini.
           </p>
         )}
       </div>

@@ -397,15 +397,9 @@ export default function Home() {
                 : "Belum ada film yang akan datang"
             }
           >
-            {tab === "now" ? (
-              <>
-                Untuk pembuat web: jalankan{" "}
-                <code>select refresh_showtimes(7);</code> di Supabase SQL
-                Editor.
-              </>
-            ) : (
-              "Daftar akan terisi setelah impor TMDB dijalankan."
-            )}
+            {tab === "now"
+              ? "Jadwal dibuat otomatis setiap hari. Coba muat ulang halaman beberapa saat lagi."
+              : "Daftar film yang akan datang diperbarui otomatis dari TMDB setiap hari."}
           </Empty>
         ) : tab === "now" ? (
           <ul className={GRID}>{list.slice(0, PREVIEW).map((m) => card(m))}</ul>

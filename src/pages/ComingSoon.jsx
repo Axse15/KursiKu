@@ -70,8 +70,8 @@ export default function ComingSoon() {
 
       {upcoming.length === 0 ? (
         <Empty title="Belum ada film yang akan datang">
-          Untuk pembuat web: jalankan <code>node scripts/import-tmdb.mjs</code>{" "}
-          lalu tempel import.sql di Supabase.
+          Daftar ini diperbarui otomatis dari TMDB setiap hari, jadi film baru
+          akan muncul sendiri.
         </Empty>
       ) : (
         <>

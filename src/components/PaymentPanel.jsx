@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { rupiah } from "../lib/config";
-import { BANKS, fmtCountdown, fmtVa, qrPayload } from "../lib/payment";
+import { BANKS, bankVa, fmtCountdown, fmtVa, qrPayload } from "../lib/payment";
 import { btnGhost, btnPrimary } from "./ui";
 
-// Langkah pembayaran: QR untuk QRIS/e-wallet, nomor virtual account untuk transfer bank, dengan hitung mundur.
+// Langkah pembayaran: QR untuk QRIS/e-wallet, nomor virtual account untuk transfer bank / mobile banking
+// (pembeli memilih salah satu dari banyak bank), dengan hitung mundur.
 // QRIS dan e-wallet: pembayaran terdeteksi sendiri setelah 10-20 detik (payment.paidAt), lalu onPaid dipanggil otomatis.
 // Transfer bank: pengguna menekan "Saya sudah transfer". Tidak ada pengecekan ke bank sungguhan.
 export default function PaymentPanel({
@@ -19,6 +20,7 @@ export default function PaymentPanel({
   const [now, setNow] = useState(() => Date.now());
   const [bank, setBank] = useState(BANKS[0]);
   const [copied, setCopied] = useState(false);
+  const va = bankVa(payment.va, bank); // nomor virtual account milik bank yang sedang dipilih
   const paidRef = useRef(onPaid); // selalu memanggil versi terbaru onPaid
   paidRef.current = onPaid;
   const firedFor = useRef(null); // referensi pembayaran yang sudah memicu bayar otomatis (supaya tidak terpicu dua kali)
@@ -52,7 +54,7 @@ export default function PaymentPanel({
 
   async function copyVa() {
     try {
-      await navigator.clipboard.writeText(payment.va);
+      await navigator.clipboard.writeText(va);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -72,7 +74,7 @@ export default function PaymentPanel({
             className="text-xl font-extrabold tracking-tight sm:text-2xl"
           >
             {isBank
-              ? "Transfer ke virtual account"
+              ? "Transfer lewat mobile banking"
               : method.id === "ewallet"
                 ? "Bayar dengan e-wallet"
                 : "Bayar dengan QRIS"}
@@ -92,7 +94,10 @@ export default function PaymentPanel({
         </p>
       </div>
 
-      <div className="mt-5 grid gap-5 md:grid-cols-[auto_minmax(0,1fr)] md:items-center md:gap-8">
+      {/* QR di kiri, rincian di kanan. Transfer bank: daftar bank butuh lebar penuh, jadi rincian pindah ke bawahnya. */}
+      <div
+        className={`mt-5 grid gap-5 ${isQr ? "md:grid-cols-[auto_minmax(0,1fr)] md:items-center md:gap-8" : ""}`}
+      >
         {isQr ? (
           <div className="mx-auto w-full max-w-[14rem] md:mx-0 md:max-w-[16rem]">
             <div
@@ -115,33 +120,39 @@ export default function PaymentPanel({
             </p>
           </div>
         ) : (
-          <div className="mx-auto w-full max-w-sm space-y-3 md:mx-0 md:w-72 md:max-w-none">
-            <div>
-              <label htmlFor="bank" className="text-xs font-bold text-ink-2">
+          <div className="w-full space-y-3">
+            <fieldset disabled={paying}>
+              <legend className="text-xs font-bold text-ink-2">
                 Pilih bank
-              </label>
-              <select
-                id="bank"
-                value={bank}
-                onChange={(e) => setBank(e.target.value)}
-                className="mt-1 min-h-11 w-full rounded-xl border-2 border-edge bg-panel px-3 text-sm text-ink"
-              >
+              </legend>
+              <div className="mt-1.5 grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {BANKS.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
+                  <label
+                    key={b.id}
+                    className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl border-2 border-edge bg-panel px-1.5 text-center text-sm font-bold leading-tight has-[:checked]:bg-ink has-[:checked]:text-page has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-ink has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60"
+                  >
+                    <input
+                      type="radio"
+                      name="bank"
+                      value={b.id}
+                      checked={bank.id === b.id}
+                      onChange={() => setBank(b)}
+                      className="sr-only"
+                    />
+                    {b.name}
+                  </label>
                 ))}
-              </select>
-            </div>
-            <div className="rounded-2xl border-2 border-edge bg-panel p-4 shadow-nb">
+              </div>
+            </fieldset>
+            <div className="rounded-2xl border-2 border-edge bg-panel p-4 shadow-nb sm:max-w-md">
               <p className="text-xs font-bold text-muted">
-                Nomor virtual account {bank}
+                Nomor virtual account {bank.name}
               </p>
               <p
                 className="tnum mt-1 break-all font-display text-2xl font-extrabold tracking-wide"
                 data-testid="payment-va"
               >
-                {fmtVa(payment.va)}
+                {fmtVa(va)}
               </p>
               <button
                 type="button"
@@ -171,7 +182,7 @@ export default function PaymentPanel({
             <dt className="sr-only">Cara bayar</dt>
             <dd className="text-ink-2">
               {isBank
-                ? `Buka aplikasi ${bank}, pilih transfer ke virtual account, masukkan nomor virtual account ini, lalu bayar tepat sesuai total.`
+                ? `Buka aplikasi mobile banking ${bank.name}, pilih Transfer lalu Virtual Account, masukkan nomor virtual account ini, dan bayar tepat sesuai total. Setelah berhasil, kembali ke sini dan tekan "Saya sudah transfer".`
                 : method.id === "ewallet"
                   ? "Buka aplikasi e-wallet, pilih Scan/Bayar, lalu pindai kode QR ini."
                   : "Buka aplikasi mobile banking atau e-wallet yang mendukung QRIS, pilih Scan, lalu pindai kode QR ini."}

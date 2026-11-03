@@ -1,0 +1,36 @@
+# Tiap hari: (1) bangunkan Supabase supaya proyek gratis tidak dijeda, (2) tarik film terbaru dari TMDB,
+# (3) buat jadwal 7 hari ke depan. Semua dikerjakan oleh scripts/sync-tmdb.mjs.
+# Bisa juga dijalankan dengan tangan: tab Actions > "KursiKu otomatis" > Run workflow.
+name: KursiKu otomatis
+
+on:
+  schedule:
+    - cron: "17 18 * * *" # 18:17 UTC = 01:17 WIB
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kursiku-otomatis
+  cancel-in-progress: false
+
+jobs:
+  sinkron:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Sinkronkan film dan jadwal
+        run: node scripts/sync-tmdb.mjs
+        env:
+          TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          OMDB_KEY: ${{ secrets.OMDB_KEY }}
+          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}

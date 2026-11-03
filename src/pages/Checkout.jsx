@@ -28,7 +28,7 @@ import {
   pointsToRupiah,
 } from "../lib/points";
 import { usePoints } from "../lib/usePoints";
-import { METHODS, newPayment } from "../lib/payment";
+import { BANKS, METHODS, newPayment } from "../lib/payment";
 import PaymentPanel from "../components/PaymentPanel";
 import {
   Empty,
@@ -643,8 +643,9 @@ export default function Checkout() {
           </fieldset>
 
           <p className="rounded-xl border-2 border-edge bg-panel p-3 text-xs text-ink-2">
-            Di langkah berikutnya kamu akan melihat kode QR atau nomor virtual
-            account. Tidak ada uang sungguhan yang diproses (demo tugas kuliah).
+            Di langkah berikutnya kamu akan melihat kode QR, atau memilih salah
+            satu dari {BANKS.length} bank untuk transfer lewat mobile banking.
+            Tidak ada uang sungguhan yang diproses (demo tugas kuliah).
           </p>
 
           {formError && (

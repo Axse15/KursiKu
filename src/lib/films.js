@@ -7,6 +7,22 @@ import { releaseInfo } from "./release";
 // Dibatasi 3 hari supaya jumlah barisnya kecil (batas bawaan Supabase 1000 baris per permintaan).
 const WINDOW_MS = 3 * 86400000;
 
+// Kalau tidak ada satu pun jadwal (web lama tidak dibuka, jadwal 7 hari sudah habis), minta database membuat jadwal baru
+// lewat ensure_showtimes() (supabase-v11.sql). Dicoba sekali per kunjungan; kalau v11 belum dijalankan, diam-diam dilewati.
+// Beberapa komponen memuat film bersamaan, jadi semuanya menunggu satu panggilan yang sama (bukan satu panggilan per komponen).
+let healing = null;
+function healSchedule() {
+  healing ||= (async () => {
+    try {
+      const made = unwrap(await supabase.rpc("ensure_showtimes"));
+      return Number(made) > 0;
+    } catch {
+      return false;
+    }
+  })();
+  return healing;
+}
+
 // Data film + ringkasan jadwal, dipakai beranda, Sedang tayang, Coming soon, dan Pencarian.
 // cinemaId = null berarti semua bioskop.
 export function useFilms(cinemaId = null) {
@@ -17,23 +33,35 @@ export function useFilms(cinemaId = null) {
 
     // Supabase membatasi 1000 baris per permintaan. Dengan banyak film, jadwal 3 hari bisa lebih dari itu,
     // jadi diambil per halaman 1000 baris (maksimal 5 halaman) supaya tidak ada film yang diam-diam hilang.
-    const now = Date.now();
     const PAGE = 1000;
-    const shows = [];
-    for (let from = 0; from < 5 * PAGE; from += PAGE) {
-      let q = supabase
-        .from("showtimes")
-        .select("movie_id, cinema_id, starts_at, price_regular")
-        .gte("starts_at", new Date(now).toISOString())
-        .lt("starts_at", new Date(now + WINDOW_MS).toISOString())
-        .order("starts_at")
-        .order("id")
-        .range(from, from + PAGE - 1);
-      if (cinemaId) q = q.eq("cinema_id", cinemaId);
-      const part = unwrap(await q);
-      shows.push(...part);
-      if (part.length < PAGE) break;
-    }
+    const loadShows = async () => {
+      const now = Date.now();
+      const out = [];
+      for (let from = 0; from < 5 * PAGE; from += PAGE) {
+        let q = supabase
+          .from("showtimes")
+          .select("movie_id, cinema_id, starts_at, price_regular")
+          .gte("starts_at", new Date(now).toISOString())
+          .lt("starts_at", new Date(now + WINDOW_MS).toISOString())
+          .order("starts_at")
+          .order("id")
+          .range(from, from + PAGE - 1);
+        if (cinemaId) q = q.eq("cinema_id", cinemaId);
+        const part = unwrap(await q);
+        out.push(...part);
+        if (part.length < PAGE) break;
+      }
+      return out;
+    };
+    let shows = await loadShows();
+    // semua bioskop kosong + sudah ada film = jadwal habis: biarkan database membuat jadwal baru, lalu muat ulang sekali
+    if (
+      shows.length === 0 &&
+      !cinemaId &&
+      movies.length > 0 &&
+      (await healSchedule())
+    )
+      shows = await loadShows();
 
     // jadwal terdekat per film + bioskop mana saja yang menayangkannya
     const next = {};

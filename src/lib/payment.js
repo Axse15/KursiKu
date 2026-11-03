@@ -8,11 +8,37 @@ export const AUTO_MAX_MS = 20000;
 
 export const METHODS = [
   { id: "qris", label: "QRIS", auto: true },
-  { id: "bank", label: "Transfer bank", auto: false },
+  { id: "bank", label: "Transfer bank / mobile banking", auto: false },
   { id: "ewallet", label: "E-wallet", auto: true },
 ];
 
-export const BANKS = ["BCA", "Mandiri", "BNI", "BRI"];
+// Bank yang bisa dipilih untuk transfer lewat mobile banking. Hanya nama (tanpa logo): ini simulasi, bukan kerja sama dengan bank mana pun.
+export const BANKS = [
+  { id: "bca", name: "BCA" },
+  { id: "mandiri", name: "Mandiri" },
+  { id: "bni", name: "BNI" },
+  { id: "bri", name: "BRI" },
+  { id: "bsi", name: "BSI" },
+  { id: "cimb", name: "CIMB Niaga" },
+  { id: "permata", name: "Permata" },
+  { id: "danamon", name: "Danamon" },
+  { id: "btn", name: "BTN" },
+  { id: "ocbc", name: "OCBC" },
+  { id: "jago", name: "Bank Jago" },
+  { id: "seabank", name: "SeaBank" },
+];
+
+// Nomor virtual account tiap bank berbeda, seperti aslinya: dua digit setelah awalan 9999 menunjukkan bank yang dipilih.
+// Awalan 9999 tetap dipertahankan supaya nomornya tidak pernah cocok dengan rekening sungguhan.
+export const bankVa = (va, bank) => {
+  const code = String(
+    Math.max(
+      0,
+      BANKS.findIndex((b) => b.id === bank.id),
+    ) + 1,
+  ).padStart(2, "0");
+  return va.slice(0, 4) + code + va.slice(6);
+};
 
 const ALNUM = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // tanpa huruf/angka yang mirip (O/0, I/1)
 

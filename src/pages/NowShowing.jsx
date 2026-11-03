@@ -237,8 +237,8 @@ export default function NowShowing() {
           </Empty>
         ) : (
           <Empty title="Belum ada jadwal tayang">
-            Untuk pembuat web: jalankan{" "}
-            <code>select refresh_showtimes(7);</code> di Supabase SQL Editor.
+            Jadwal dibuat otomatis setiap hari. Coba muat ulang halaman beberapa
+            saat lagi.
           </Empty>
         )
       ) : (
