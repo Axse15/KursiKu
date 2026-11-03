@@ -7,12 +7,9 @@
     <script>
       // Pasang tema sebelum halaman digambar supaya tidak berkedip putih/hitam saat dibuka.
       try {
-        var t = localStorage.getItem("kursiku_theme");
-        if (t !== "light" && t !== "dark")
-          t = window.matchMedia("(prefers-color-scheme: light)").matches
-            ? "light"
-            : "dark";
-        document.documentElement.dataset.theme = t;
+        var t = localStorage.getItem('kursiku_theme')
+        if (t !== 'light' && t !== 'dark') t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+        document.documentElement.dataset.theme = t
       } catch (e) {}
     </script>
     <title>KursiKu - Pesan Tiket Bioskop</title>

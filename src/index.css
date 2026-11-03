@@ -10,11 +10,8 @@
   Tema gelap adalah bawaan. Kontras teks sudah dihitung >= 4.5:1 di kedua tema.
 */
 @theme {
-  --font-sans:
-    "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display:
-    "Bricolage Grotesque", "Instrument Sans", system-ui, -apple-system,
-    "Segoe UI", sans-serif;
+  --font-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Bricolage Grotesque", "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
 
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
@@ -213,4 +210,22 @@ h3 {
   to {
     transform: scaleX(1);
   }
+}
+
+/* Deretan poster yang digeser ke samping (beranda): berhenti pas di tiap kartu, scrollbar tipis */
+.rail {
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+  overscroll-behavior-x: contain;
+}
+.rail > * {
+  scroll-snap-align: start;
+}
+/* toolbar saringan yang bisa digeser di HP tanpa menampilkan scrollbar */
+.no-bar {
+  scrollbar-width: none;
+}
+.no-bar::-webkit-scrollbar {
+  display: none;
 }

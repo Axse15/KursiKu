@@ -1,108 +1,82 @@
-import { useEffect, useRef, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
-import { rupiah } from "../lib/config";
-import { BANKS, bankVa, fmtCountdown, fmtVa, qrPayload } from "../lib/payment";
-import { btnGhost, btnPrimary } from "./ui";
+import { useEffect, useRef, useState } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
+import { rupiah } from '../lib/config'
+import { BANKS, bankVa, fmtCountdown, fmtVa, qrPayload } from '../lib/payment'
+import { btnGhost, btnPrimary } from './ui'
 
 // Langkah pembayaran: QR untuk QRIS/e-wallet, nomor virtual account untuk transfer bank / mobile banking
 // (pembeli memilih salah satu dari banyak bank), dengan hitung mundur.
 // QRIS dan e-wallet: pembayaran terdeteksi sendiri setelah 10-20 detik (payment.paidAt), lalu onPaid dipanggil otomatis.
 // Transfer bank: pengguna menekan "Saya sudah transfer". Tidak ada pengecekan ke bank sungguhan.
-export default function PaymentPanel({
-  method,
-  payment,
-  paying,
-  error,
-  onPaid,
-  onBack,
-  onRenew,
-}) {
-  const [now, setNow] = useState(() => Date.now());
-  const [bank, setBank] = useState(BANKS[0]);
-  const [copied, setCopied] = useState(false);
-  const va = bankVa(payment.va, bank); // nomor virtual account milik bank yang sedang dipilih
-  const paidRef = useRef(onPaid); // selalu memanggil versi terbaru onPaid
-  paidRef.current = onPaid;
-  const firedFor = useRef(null); // referensi pembayaran yang sudah memicu bayar otomatis (supaya tidak terpicu dua kali)
+export default function PaymentPanel({ method, payment, paying, error, onPaid, onBack, onRenew }) {
+  const [now, setNow] = useState(() => Date.now())
+  const [bank, setBank] = useState(BANKS[0])
+  const [copied, setCopied] = useState(false)
+  const va = bankVa(payment.va, bank) // nomor virtual account milik bank yang sedang dipilih
+  const paidRef = useRef(onPaid) // selalu memanggil versi terbaru onPaid
+  paidRef.current = onPaid
+  const firedFor = useRef(null) // referensi pembayaran yang sudah memicu bayar otomatis (supaya tidak terpicu dua kali)
 
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
 
   // kode baru dibuat: hitung mundur langsung mulai dari 10:00, tanpa menunggu detik berikutnya
-  useEffect(() => setNow(Date.now()), [payment.expiresAt]);
+  useEffect(() => setNow(Date.now()), [payment.expiresAt])
 
-  const left = payment.expiresAt - now;
-  const expired = left <= 0;
-  const isBank = method.id === "bank";
-  const isQr = !isBank;
+  const left = payment.expiresAt - now
+  const expired = left <= 0
+  const isBank = method.id === 'bank'
+  const isQr = !isBank
 
   // QRIS / e-wallet: setelah jeda acak, pembayaran dianggap masuk
   useEffect(() => {
-    if (!isQr || firedFor.current === payment.ref) return undefined;
+    if (!isQr || firedFor.current === payment.ref) return undefined
     const t = setTimeout(
       () => {
-        if (Date.now() >= payment.expiresAt) return; // sudah kedaluwarsa: pengguna harus membuat kode baru
-        firedFor.current = payment.ref;
-        paidRef.current();
+        if (Date.now() >= payment.expiresAt) return // sudah kedaluwarsa: pengguna harus membuat kode baru
+        firedFor.current = payment.ref
+        paidRef.current()
       },
-      Math.max(0, payment.paidAt - Date.now()),
-    );
-    return () => clearTimeout(t);
-  }, [isQr, payment.ref, payment.paidAt, payment.expiresAt]);
+      Math.max(0, payment.paidAt - Date.now())
+    )
+    return () => clearTimeout(t)
+  }, [isQr, payment.ref, payment.paidAt, payment.expiresAt])
 
   async function copyVa() {
     try {
-      await navigator.clipboard.writeText(va);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(va)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
     } catch {
       /* browser memblokir salin otomatis: nomornya tetap bisa disalin manual */
     }
   }
 
   return (
-    <section
-      aria-labelledby="bayar-judul"
-      className="nb-card bg-tile-yellow p-4 sm:p-6"
-    >
+    <section aria-labelledby="bayar-judul" className="nb-card bg-tile-yellow p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2
-            id="bayar-judul"
-            className="text-xl font-extrabold tracking-tight sm:text-2xl"
-          >
-            {isBank
-              ? "Transfer lewat mobile banking"
-              : method.id === "ewallet"
-                ? "Bayar dengan e-wallet"
-                : "Bayar dengan QRIS"}
+          <h2 id="bayar-judul" className="text-xl font-extrabold tracking-tight sm:text-2xl">
+            {isBank ? 'Transfer lewat mobile banking' : method.id === 'ewallet' ? 'Bayar dengan e-wallet' : 'Bayar dengan QRIS'}
           </h2>
           <p className="mt-1 text-sm text-ink-2">{method.label}</p>
         </div>
         <p
           role="timer"
-          aria-label={
-            expired
-              ? "Waktu bayar habis"
-              : `Sisa waktu bayar ${fmtCountdown(left)}`
-          }
-          className={`tnum rounded-xl border-2 border-edge px-3 py-1.5 font-display text-xl font-extrabold sm:text-2xl ${expired ? "bg-danger-bg text-danger" : "bg-panel"}`}
+          aria-label={expired ? 'Waktu bayar habis' : `Sisa waktu bayar ${fmtCountdown(left)}`}
+          className={`tnum rounded-xl border-2 border-edge px-3 py-1.5 font-display text-xl font-extrabold sm:text-2xl ${expired ? 'bg-danger-bg text-danger' : 'bg-panel'}`}
         >
-          {expired ? "Habis" : fmtCountdown(left)}
+          {expired ? 'Habis' : fmtCountdown(left)}
         </p>
       </div>
 
       {/* QR di kiri, rincian di kanan. Transfer bank: daftar bank butuh lebar penuh, jadi rincian pindah ke bawahnya. */}
-      <div
-        className={`mt-5 grid gap-5 ${isQr ? "md:grid-cols-[auto_minmax(0,1fr)] md:items-center md:gap-8" : ""}`}
-      >
+      <div className={`mt-5 grid gap-5 ${isQr ? 'md:grid-cols-[auto_minmax(0,1fr)] md:items-center md:gap-8' : ''}`}>
         {isQr ? (
           <div className="mx-auto w-full max-w-[14rem] md:mx-0 md:max-w-[16rem]">
-            <div
-              className={`rounded-2xl border-2 border-edge bg-white p-3 shadow-nb transition-opacity ${expired || paying ? "opacity-40" : ""}`}
-            >
+            <div className={`rounded-2xl border-2 border-edge bg-white p-3 shadow-nb transition-opacity ${expired || paying ? 'opacity-40' : ''}`}>
               <QRCodeSVG
                 value={qrPayload(payment)}
                 size={208}
@@ -115,51 +89,31 @@ export default function PaymentPanel({
                 className="block h-auto w-full"
               />
             </div>
-            <p className="mt-2 text-center text-xs font-bold text-ink-2">
-              KursiKu
-            </p>
+            <p className="mt-2 text-center text-xs font-bold text-ink-2">KursiKu</p>
           </div>
         ) : (
           <div className="w-full space-y-3">
             <fieldset disabled={paying}>
-              <legend className="text-xs font-bold text-ink-2">
-                Pilih bank
-              </legend>
+              <legend className="text-xs font-bold text-ink-2">Pilih bank</legend>
               <div className="mt-1.5 grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {BANKS.map((b) => (
                   <label
                     key={b.id}
                     className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl border-2 border-edge bg-panel px-1.5 text-center text-sm font-bold leading-tight has-[:checked]:bg-ink has-[:checked]:text-page has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-ink has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60"
                   >
-                    <input
-                      type="radio"
-                      name="bank"
-                      value={b.id}
-                      checked={bank.id === b.id}
-                      onChange={() => setBank(b)}
-                      className="sr-only"
-                    />
+                    <input type="radio" name="bank" value={b.id} checked={bank.id === b.id} onChange={() => setBank(b)} className="sr-only" />
                     {b.name}
                   </label>
                 ))}
               </div>
             </fieldset>
             <div className="rounded-2xl border-2 border-edge bg-panel p-4 shadow-nb sm:max-w-md">
-              <p className="text-xs font-bold text-muted">
-                Nomor virtual account {bank.name}
-              </p>
-              <p
-                className="tnum mt-1 break-all font-display text-2xl font-extrabold tracking-wide"
-                data-testid="payment-va"
-              >
+              <p className="text-xs font-bold text-muted">Nomor virtual account {bank.name}</p>
+              <p className="tnum mt-1 break-all font-display text-2xl font-extrabold tracking-wide" data-testid="payment-va">
                 {fmtVa(va)}
               </p>
-              <button
-                type="button"
-                onClick={copyVa}
-                className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-accent-ink underline"
-              >
-                {copied ? "Tersalin ✓" : "Salin nomor"}
+              <button type="button" onClick={copyVa} className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-accent-ink underline">
+                {copied ? 'Tersalin ✓' : 'Salin nomor'}
               </button>
             </div>
           </div>
@@ -168,9 +122,7 @@ export default function PaymentPanel({
         <dl className="text-sm">
           <div className="flex items-baseline justify-between gap-4 border-b-2 border-edge/20 py-2">
             <dt className="text-ink-2">Total bayar</dt>
-            <dd className="tnum text-xl font-extrabold">
-              {rupiah(payment.amount)}
-            </dd>
+            <dd className="tnum text-xl font-extrabold">{rupiah(payment.amount)}</dd>
           </div>
           <div className="flex items-baseline justify-between gap-4 border-b-2 border-edge/20 py-2">
             <dt className="text-ink-2">Nomor referensi</dt>
@@ -183,9 +135,9 @@ export default function PaymentPanel({
             <dd className="text-ink-2">
               {isBank
                 ? `Buka aplikasi mobile banking ${bank.name}, pilih Transfer lalu Virtual Account, masukkan nomor virtual account ini, dan bayar tepat sesuai total. Setelah berhasil, kembali ke sini dan tekan "Saya sudah transfer".`
-                : method.id === "ewallet"
-                  ? "Buka aplikasi e-wallet, pilih Scan/Bayar, lalu pindai kode QR ini."
-                  : "Buka aplikasi mobile banking atau e-wallet yang mendukung QRIS, pilih Scan, lalu pindai kode QR ini."}
+                : method.id === 'ewallet'
+                  ? 'Buka aplikasi e-wallet, pilih Scan/Bayar, lalu pindai kode QR ini.'
+                  : 'Buka aplikasi mobile banking atau e-wallet yang mendukung QRIS, pilih Scan, lalu pindai kode QR ini.'}
             </dd>
           </div>
         </dl>
@@ -193,40 +145,27 @@ export default function PaymentPanel({
 
       {/* QRIS / e-wallet: status otomatis, tidak ada tombol bayar */}
       {isQr && !expired && (
-        <div
-          role="status"
-          className="mt-4 flex items-center gap-3 rounded-xl border-2 border-edge bg-panel p-3 text-sm font-bold"
-        >
+        <div role="status" className="mt-4 flex items-center gap-3 rounded-xl border-2 border-edge bg-panel p-3 text-sm font-bold">
           {paying ? (
             <>
-              <span
-                aria-hidden="true"
-                className="grid size-6 shrink-0 place-items-center rounded-full border-2 border-edge bg-accent text-xs text-on-accent"
-              >
+              <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-full border-2 border-edge bg-accent text-xs text-on-accent">
                 ✓
               </span>
               <span>Pembayaran diterima. Menyiapkan e-tiketmu…</span>
             </>
           ) : (
             <>
-              <span
-                aria-hidden="true"
-                className="size-3 shrink-0 animate-pulse rounded-full bg-accent ring-2 ring-edge"
-              />
+              <span aria-hidden="true" className="size-3 shrink-0 animate-pulse rounded-full bg-accent ring-2 ring-edge" />
               <span>
                 Menunggu pembayaran…
-                <span className="block text-xs font-normal text-ink-2">
-                  Halaman ini lanjut sendiri setelah pembayaran terdeteksi.
-                </span>
+                <span className="block text-xs font-normal text-ink-2">Halaman ini lanjut sendiri setelah pembayaran terdeteksi.</span>
               </span>
             </>
           )}
         </div>
       )}
 
-      <p className="mt-4 text-xs text-ink-2">
-        Demo tugas kuliah: tidak ada uang sungguhan yang diproses.
-      </p>
+      <p className="mt-4 text-xs text-ink-2">Demo tugas kuliah: tidak ada uang sungguhan yang diproses.</p>
 
       {expired && (
         <p role="alert" className="mt-3 text-sm font-bold text-danger">
@@ -240,42 +179,24 @@ export default function PaymentPanel({
       )}
 
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-        <button
-          type="button"
-          onClick={onBack}
-          disabled={paying}
-          className={btnGhost}
-        >
+        <button type="button" onClick={onBack} disabled={paying} className={btnGhost}>
           Ganti metode
         </button>
         {expired ? (
-          <button
-            type="button"
-            onClick={onRenew}
-            className={`${btnPrimary} sm:flex-1`}
-          >
+          <button type="button" onClick={onRenew} className={`${btnPrimary} sm:flex-1`}>
             Buat kode baru
           </button>
         ) : isBank ? (
-          <button
-            type="button"
-            onClick={onPaid}
-            disabled={paying}
-            className={`${btnPrimary} sm:flex-1`}
-          >
-            {paying ? "Memeriksa pembayaran…" : "Saya sudah transfer"}
+          <button type="button" onClick={onPaid} disabled={paying} className={`${btnPrimary} sm:flex-1`}>
+            {paying ? 'Memeriksa pembayaran…' : 'Saya sudah transfer'}
           </button>
         ) : error && !paying ? (
           // bayar otomatis sudah jalan tapi gagal menyimpan: beri jalan untuk mencoba lagi
-          <button
-            type="button"
-            onClick={onPaid}
-            className={`${btnPrimary} sm:flex-1`}
-          >
+          <button type="button" onClick={onPaid} className={`${btnPrimary} sm:flex-1`}>
             Coba lagi
           </button>
         ) : null}
       </div>
     </section>
-  );
+  )
 }

@@ -1,94 +1,71 @@
-import { Link, useLocation, useParams } from "react-router-dom";
-import { QRCodeSVG } from "qrcode.react";
-import { supabase, unwrap } from "../lib/supabase";
-import { useAsync } from "../lib/useAsync";
-import { cinemaLabel, fmtDate, fmtTime, rupiah } from "../lib/config";
-import { sortSeats } from "../lib/seats";
-import { orderTotals } from "../lib/order";
-import { usePromoMap } from "../lib/usePromos";
-import { Empty, ErrorBox, Skeleton, btnGhost } from "../components/ui";
+import { Link, useLocation, useParams } from 'react-router-dom'
+import { QRCodeSVG } from 'qrcode.react'
+import { supabase, unwrap } from '../lib/supabase'
+import { useAsync } from '../lib/useAsync'
+import { cinemaLabel, fmtDate, fmtTime, rupiah } from '../lib/config'
+import { sortSeats } from '../lib/seats'
+import { orderTotals } from '../lib/order'
+import { usePromoMap } from '../lib/usePromos'
+import { Empty, ErrorBox, Skeleton, btnGhost } from '../components/ui'
 
 export const BOOKING_SELECT =
-  "booking_code, seat_code, customer_name, promo_code, deal_percent, points_used, created_at, showtimes(starts_at, studio, price_regular, price_premium, movies(title), cinemas(name, city))";
+  'booking_code, seat_code, customer_name, promo_code, deal_percent, points_used, created_at, showtimes(starts_at, studio, price_regular, price_premium, movies(title), cinemas(name, city))'
 
 export default function Ticket() {
-  const { code } = useParams();
-  const earned = useLocation().state?.earned || 0; // poin baru, hanya dikirim Checkout sesaat setelah bayar
+  const { code } = useParams()
+  const earned = useLocation().state?.earned || 0 // poin baru, hanya dikirim Checkout sesaat setelah bayar
 
-  const {
-    data: rows,
-    loading,
-    error,
-    reload,
-  } = useAsync(
-    async () =>
-      unwrap(
-        await supabase
-          .from("bookings")
-          .select(BOOKING_SELECT)
-          .eq("booking_code", code),
-      ),
-    [code],
-  );
-  const promoCode = rows?.[0]?.promo_code || null;
-  const { data: promoMap } = usePromoMap();
+  const { data: rows, loading, error, reload } = useAsync(
+    async () => unwrap(await supabase.from('bookings').select(BOOKING_SELECT).eq('booking_code', code)),
+    [code]
+  )
+  const promoCode = rows?.[0]?.promo_code || null
+  const { data: promoMap } = usePromoMap()
 
-  if (error) return <ErrorBox message={error} onRetry={reload} />;
-  if (loading && !rows) return <Skeleton className="h-96" />;
+  if (error) return <ErrorBox message={error} onRetry={reload} />
+  if (loading && !rows) return <Skeleton className="h-96" />
   if (!rows || rows.length === 0) {
     return (
       <Empty title="Tiket tidak ditemukan">
-        Periksa kembali kode booking kamu.{" "}
-        <Link to="/" className="font-semibold text-accent-ink underline">
-          Ke beranda
-        </Link>
+        Periksa kembali kode booking kamu. <Link to="/" className="font-semibold text-accent-ink underline">Ke beranda</Link>
       </Empty>
-    );
+    )
   }
 
-  if (promoCode && !promoMap) return <Skeleton className="h-96" />; // tunggu data promo supaya total tidak sempat tampil tanpa potongan
+  if (promoCode && !promoMap) return <Skeleton className="h-96" /> // tunggu data promo supaya total tidak sempat tampil tanpa potongan
 
-  const showtime = rows[0].showtimes;
-  const seats = sortSeats(rows.map((r) => r.seat_code));
-  const promo = promoCode ? promoMap?.[promoCode] || null : null;
-  const pointsUsed = rows.reduce((sum, r) => sum + (r.points_used || 0), 0); // dicatat di baris kursi pertama
-  const { dealPercent, dealDiscount, discount, pointsDiscount, total } =
-    orderTotals(seats, showtime, promo, rows[0].deal_percent || 0, pointsUsed);
+  const showtime = rows[0].showtimes
+  const seats = sortSeats(rows.map((r) => r.seat_code))
+  const promo = promoCode ? promoMap?.[promoCode] || null : null
+  const pointsUsed = rows.reduce((sum, r) => sum + (r.points_used || 0), 0) // dicatat di baris kursi pertama
+  const { dealPercent, dealDiscount, discount, pointsDiscount, total } = orderTotals(
+    seats,
+    showtime,
+    promo,
+    rows[0].deal_percent || 0,
+    pointsUsed
+  )
 
   return (
     <section>
-      <p className="mb-6 rounded-xl border-2 border-ok/40 bg-ok-bg p-3 text-sm font-medium text-ok print:hidden">
+      <p role="status" className="mx-auto mb-6 max-w-3xl rounded-xl border-2 border-ok/40 bg-ok-bg p-3 text-sm font-medium text-ok print:hidden">
         Pembayaran simulasi berhasil. Ini e-tiket kamu.
-        {earned > 0 && (
-          <>
-            {" "}
-            Kamu dapat <strong className="tnum">+{earned} poin</strong>.
-          </>
-        )}
+        {earned > 0 && <> Kamu dapat <strong className="tnum">+{earned} poin</strong>.</>}
       </p>
 
       <div className="print-ticket mx-auto max-w-3xl overflow-hidden nb-card md:flex">
         <div className="p-6 md:flex-1 md:p-8">
-          <p className="text-sm font-semibold text-accent-ink">
-            E-Tiket KursiKu
-          </p>
-          <h1 className="mt-2 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
-            {showtime.movies.title}
-          </h1>
-          {showtime.cinemas && (
-            <p className="mt-3 font-semibold">{cinemaLabel(showtime)}</p>
-          )}
+          <p className="text-sm font-semibold text-accent-ink">E-Tiket KursiKu</p>
+          <h1 className="mt-2 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">{showtime.movies.title}</h1>
+          {showtime.cinemas && <p className="mt-3 font-semibold">{cinemaLabel(showtime)}</p>}
           <p className="mt-1 text-sm capitalize text-muted">
-            {fmtDate(showtime.starts_at)} · {fmtTime(showtime.starts_at)} ·{" "}
-            {showtime.studio}
+            {fmtDate(showtime.starts_at)} · {fmtTime(showtime.starts_at)} · {showtime.studio}
           </p>
 
-          <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-5 border-t border-line pt-5 text-sm">
+          <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-5 border-t-2 border-dashed border-edge/40 pt-5 text-sm">
             <div>
               <dt className="text-xs text-muted">Kursi</dt>
-              <dd className="text-2xl font-extrabold leading-tight text-accent-ink">
-                {seats.join(", ")}
-              </dd>
+              <dd className="text-2xl font-extrabold leading-tight text-accent-ink">{seats.join(', ')}</dd>
             </div>
             <div>
               <dt className="text-xs text-muted">Atas nama</dt>
@@ -112,44 +89,30 @@ export default function Ticket() {
                   Poin {pointsUsed} − {rupiah(pointsDiscount)}
                 </dd>
               )}
-              {promoCode && !promo && promoMap && (
-                <dd className="text-xs text-muted">Promo {promoCode}</dd>
-              )}
+              {promoCode && !promo && promoMap && <dd className="text-xs text-muted">Promo {promoCode}</dd>}
             </div>
             <div>
               <dt className="text-xs text-muted">Kode booking</dt>
-              <dd className="tnum text-lg font-semibold tracking-wide">
-                {code}
-              </dd>
+              <dd className="tnum text-lg font-semibold tracking-wide">{code}</dd>
             </div>
           </dl>
         </div>
 
-        <div className="flex flex-col items-center justify-center border-t border-line bg-raised p-6 md:w-56 md:shrink-0 md:border-l md:border-t-0">
-          <div className="rounded-xl bg-white p-3 shadow-sm ring-1 ring-black/5">
+        <div className="flex flex-col items-center justify-center border-t-2 border-dashed border-edge bg-tile-yellow p-6 md:w-56 md:shrink-0 md:border-l-2 md:border-t-0">
+          <div className="rounded-xl border-2 border-edge bg-white p-3 shadow-nb">
             <QRCodeSVG value={code} size={136} />
           </div>
-          <p className="mt-3 text-center text-xs text-faint">
-            QR berisi kode booking (dummy)
-          </p>
+          <p className="mt-3 text-center text-xs text-ink-2">QR berisi kode booking (dummy)</p>
         </div>
       </div>
 
       <div className="mx-auto mt-8 flex max-w-3xl flex-wrap gap-3 print:hidden">
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className={btnGhost}
-        >
+        <button type="button" onClick={() => window.print()} className={btnGhost}>
           Cetak / simpan PDF
         </button>
-        <Link to="/" className={btnGhost}>
-          Pesan lagi
-        </Link>
-        <Link to="/riwayat" className={btnGhost}>
-          Riwayat pesanan
-        </Link>
+        <Link to="/" className={btnGhost}>Pesan lagi</Link>
+        <Link to="/riwayat" className={btnGhost}>Riwayat pesanan</Link>
       </div>
     </section>
-  );
+  )
 }
