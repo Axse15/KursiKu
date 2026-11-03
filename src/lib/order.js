@@ -7,7 +7,7 @@ import { POINT_VALUE } from "./points";
 //   dealDiscount   = potongan diskon film harian (lihat deals.js)
 //   subtotal       = base - dealDiscount
 //   discount       = potongan kode promo (dihitung dari subtotal, bukan dari base)
-//   pointsDiscount = potongan dari poin yang ditukar (1 poin = Rp100), paling banyak sisa tagihan
+//   pointsDiscount = potongan dari poin yang ditukar (1 poin = Rp10), paling banyak sisa tagihan
 //   total          = subtotal - discount - pointsDiscount
 export function orderTotals(
   seatCodes,
