@@ -297,11 +297,6 @@ export default function Nearby() {
           </a>
           , lewat Overpass API. Bisa kurang lengkap atau tidak terbaru.
         </p>
-        <p>
-          Koordinatmu dikirim ke server peta hanya untuk pencarian ini dan tidak
-          disimpan KursiKu. Bioskop di halaman ini tidak terhubung ke pemesanan:
-          tiket di KursiKu hanya untuk bioskop fiktif KursiKu.
-        </p>
       </div>
     </div>
   );

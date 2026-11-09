@@ -171,11 +171,6 @@ function Layout({ children }) {
         {children}
       </main>
 
-      <footer className={`border-t-2 border-edge px-4 py-8 text-center text-xs text-muted print:hidden ${inFlow ? '' : 'pb-28 lg:pb-8'}`}>
-        <p>Bioskop fiktif untuk tugas kuliah. Jadwal, harga, dan pemesanan hanya simulasi.</p>
-        <p className="mt-1">Data film: TMDB, OMDb (rating IMDb), dan Trakt (jumlah penonton), semuanya opsional di sisi pengembang.</p>
-        <TmdbCredit />
-      </footer>
 
       {!inFlow && (
         <nav
