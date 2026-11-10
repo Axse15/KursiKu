@@ -13,7 +13,7 @@ import { useProfile } from "../lib/profile";
 import { forgetAdmin, useIsAdmin } from "../lib/admin";
 import { Avatar } from "../components/AuthButton";
 import ThemeToggle from "../components/ThemeToggle";
-import { Empty, Icon, Skeleton, btnGhost, btnPrimary, useDialog } from "./Kit";
+import { Empty, Icon, Skeleton, btnGhost, btnPrimary, useDialog } from "./kit";
 import Overview from "./Overview";
 import Orders from "./Orders";
 import CheckIn from "./CheckIn";
