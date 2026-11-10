@@ -136,7 +136,7 @@ export default function Seats() {
   }, [showtimeId]);
 
   const [selected, setSelected] = useState([]);
-  const [qty, setQty] = useState(2);
+  const [qty, setQty] = useState("2"); // teks, supaya kolomnya bisa dikosongkan dan diketik ulang
   const [typed, setTyped] = useState("");
   const [notice, setNotice] = useState(
     params.get("conflict")
@@ -224,10 +224,19 @@ export default function Seats() {
   }
 
   function pickBest() {
-    const result = findBestSeats(qty, taken);
+    const n = Number(qty);
+    if (!Number.isInteger(n) || n < 1) {
+      setNotice(`Isi jumlah tiket dengan angka 1-${MAX_SEATS}.`);
+      return;
+    }
+    if (n > MAX_SEATS) {
+      setNotice(`Maksimal ${MAX_SEATS} kursi per pesanan.`);
+      return;
+    }
+    const result = findBestSeats(n, taken);
     if (!result) {
       setNotice(
-        `Tidak ada ${qty} kursi berdampingan yang tersedia. Coba jumlah yang lebih kecil.`,
+        `Tidak ada ${n} kursi berdampingan yang tersedia. Coba jumlah yang lebih kecil.`,
       );
       return;
     }
@@ -300,17 +309,16 @@ export default function Seats() {
           <div className="mt-5 flex flex-wrap items-end gap-3 nb-card p-3">
             <label className="text-sm text-ink-2">
               Jumlah tiket
-              <select
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={MAX_SEATS}
+                step={1}
                 value={qty}
-                onChange={(e) => setQty(Number(e.target.value))}
-                className="ml-2 min-h-10 rounded-xl border-2 border-edge bg-panel px-2"
-              >
-                {Array.from({ length: MAX_SEATS }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
+                onChange={(e) => setQty(e.target.value)}
+                className="ml-2 min-h-10 w-20 rounded-xl border-2 border-edge bg-panel px-2 text-center"
+              />
             </label>
             <button
               type="button"
