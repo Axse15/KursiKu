@@ -18,7 +18,7 @@ import Overview from "./Overview";
 import Orders from "./Orders";
 import CheckIn from "./CheckIn";
 import Analysis from "./Analysis";
-import Promos from "./promos";
+import Promos from "./Promos";
 import Films from "./Films";
 import Showtimes from "./Showtimes";
 import AdminCinemas from "./AdminCinemas";
