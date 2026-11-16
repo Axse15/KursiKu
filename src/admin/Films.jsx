@@ -307,7 +307,6 @@ export default function Films() {
     <Page
       id="film-admin"
       title="Film"
-      sub="Film dari TMDB diperbarui otomatis dan hanya bisa disembunyikan. Film buatan sendiri bisa kamu ubah dan hapus."
       actions={
         <>
           <button
@@ -477,14 +476,6 @@ export default function Films() {
           </table>
         </TableWrap>
       )}
-      <p
-        className={`${cardFlat} mt-4 max-w-3xl bg-raised/40 p-3 text-xs text-muted`}
-      >
-        Film dari TMDB diperbarui otomatis dan tidak bisa diubah di sini, hanya
-        disembunyikan. Film yang disembunyikan hilang dari web (kecuali dari
-        riwayat orang yang sudah memesannya) dan tidak lagi mendapat jadwal
-        otomatis.
-      </p>
 
       {form && (
         <FilmForm

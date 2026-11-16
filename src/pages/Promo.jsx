@@ -55,7 +55,6 @@ export default function Promo() {
         id="promo-halaman-judul"
         title="Harga & promo"
         tone="pink"
-        sub="Semua harga dan promo di sini fiktif. Tidak ada uang sungguhan yang diproses."
       />
 
       <section aria-labelledby="promo-judul">

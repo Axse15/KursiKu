@@ -443,9 +443,7 @@ export default function Checkout() {
         </div>
       </fieldset>
 
-      <p className="rounded-xl border-2 border-edge bg-panel p-3 text-xs text-ink-2">
-        Di langkah berikutnya kamu akan melihat kode QR, atau memilih salah satu dari {BANKS.length} bank untuk transfer lewat mobile banking. Tidak ada uang sungguhan yang diproses (demo tugas kuliah).
-      </p>
+      
 
       {formError && <p role="alert" className="text-sm text-danger">{formError}</p>}
 

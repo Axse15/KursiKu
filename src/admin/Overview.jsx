@@ -324,8 +324,7 @@ export default function Overview() {
             {rupiah(data.all_time.revenue)} pendapatan,{" "}
             {num(data.all_time.users)} akun terdaftar (
             {num(data.all_time.buyers)} pernah membeli), {data.all_time.movies}{" "}
-            film, {data.all_time.cinemas} bioskop. Pembayaran di KursiKu adalah
-            simulasi, jadi angka ini bukan uang sungguhan.
+            film, {data.all_time.cinemas} bioskop.
           </p>
         </div>
       )}

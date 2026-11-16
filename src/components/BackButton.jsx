@@ -13,7 +13,7 @@ function parentOf(pathname) {
 export default function BackButton() {
   const { pathname, key } = useLocation()
   const navigate = useNavigate()
-  if (TOP.includes(pathname) || pathname.startsWith('/checkout')) return null
+  if (TOP.includes(pathname) || pathname.startsWith('/checkout') || pathname.startsWith('/admin')) return null
 
   function back() {
     // key "default" = halaman pertama yang dibuka di tab ini, jadi tidak ada halaman aplikasi di belakangnya.

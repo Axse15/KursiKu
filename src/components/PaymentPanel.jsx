@@ -165,8 +165,6 @@ export default function PaymentPanel({ method, payment, paying, error, onPaid, o
         </div>
       )}
 
-      <p className="mt-4 text-xs text-ink-2">Demo tugas kuliah: tidak ada uang sungguhan yang diproses.</p>
-
       {expired && (
         <p role="alert" className="mt-3 text-sm font-bold text-danger">
           Waktu bayar habis. Buat kode baru untuk melanjutkan.

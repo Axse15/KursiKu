@@ -72,7 +72,6 @@ export default function Cinemas() {
       <section aria-labelledby="kursiku-judul">
         <SectionTitle
           id="kursiku-judul"
-          sub="Cabang fiktif untuk tugas kuliah. Jadwal, kursi, dan pembayaran di sini hanya simulasi."
           aside={
             geo.status !== 'ok' ? (
               <button type="button" onClick={geo.request} disabled={geo.status === 'locating'} className="inline-flex min-h-11 items-center text-sm font-bold text-accent-ink underline">

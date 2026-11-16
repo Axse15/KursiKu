@@ -14,6 +14,7 @@ import {
   Icon,
   Modal,
   Page,
+  Pager,
   Skeleton,
   TableWrap,
   Toolbar,
@@ -27,6 +28,7 @@ import {
 } from "./kit";
 
 const SEATS = 80;
+const PAGE_SIZE = 25; // jadwal per halaman
 
 function ShowtimeForm({ item, movies, cinemas, defaults, onClose, onSaved }) {
   const editing = !!item;
@@ -189,6 +191,7 @@ export default function Showtimes() {
   const [form, setForm] = useState(null); // null | 'new' | jadwal
   const [del, setDel] = useState(null);
   const [flash, setFlash] = useState(null);
+  const [offset, setOffset] = useState(0); // awal halaman yang sedang dilihat
 
   const movies = useAsync(() => call("admin_movies"), []);
   const cinemas = useAsync(() => call("admin_cinemas"), []);
@@ -203,7 +206,14 @@ export default function Showtimes() {
   );
   const visibleMovies = (movies.data || []).filter((m) => !m.hidden);
 
+  // Ganti saringan: kembali ke halaman pertama. Setelah muat ulang (mis. hapus jadwal) offset dijaga supaya tidak melewati data.
+  const rows = data || [];
+  const lastOffset = Math.max(0, Math.floor((rows.length - 1) / PAGE_SIZE) * PAGE_SIZE);
+  const start = Math.min(offset, lastOffset);
+  const pageRows = rows.slice(start, start + PAGE_SIZE);
+
   function pickMovie(v) {
+    setOffset(0);
     setMovie(v);
     setParams(v ? { film: v } : {}, { replace: true });
   }
@@ -212,7 +222,6 @@ export default function Showtimes() {
     <Page
       id="jadwal-admin"
       title="Jadwal tayang"
-      sub="Jadwal yang sudah dipesan dikunci supaya tiket pembeli tidak berubah. Jadwal yang tampil mulai 3 jam lalu sampai rentang yang dipilih."
       actions={
         <button
           type="button"
@@ -246,7 +255,10 @@ export default function Showtimes() {
             id="j-bioskop"
             label="Bioskop"
             value={cinema}
-            onChange={setCinema}
+            onChange={(v) => {
+              setOffset(0);
+              setCinema(v);
+            }}
           >
             <option value="">Semua</option>
             {(cinemas.data || []).map((c) => (
@@ -259,7 +271,10 @@ export default function Showtimes() {
             id="j-hari"
             label="Rentang"
             value={days}
-            onChange={setDays}
+            onChange={(v) => {
+              setOffset(0);
+              setDays(v);
+            }}
           >
             <option value="3">3 hari</option>
             <option value="7">7 hari</option>
@@ -299,7 +314,7 @@ export default function Showtimes() {
                 </tr>
               </thead>
               <tbody>
-                {data.map((s) => (
+                {pageRows.map((s) => (
                   <tr key={s.id}>
                     <td className={`${td} whitespace-nowrap`}>
                       {fmtDateTime(s.starts_at)}
@@ -360,14 +375,17 @@ export default function Showtimes() {
               </tbody>
             </table>
           </TableWrap>
+          <Pager
+            total={rows.length}
+            limit={PAGE_SIZE}
+            offset={start}
+            onChange={(o) => {
+              setOffset(o);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          />
         </>
       )}
-      <p
-        className={`${cardFlat} mt-4 max-w-3xl bg-raised/40 p-3 text-xs text-muted`}
-      >
-        Untuk mengubah jadwal yang sudah dipesan, batalkan dulu pesanannya di
-        menu Pesanan.
-      </p>
 
       {form && movies.data && cinemas.data && (
         <ShowtimeForm

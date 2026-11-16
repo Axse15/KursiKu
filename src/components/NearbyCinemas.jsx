@@ -148,9 +148,6 @@ export default function NearbyCinemas({ geo, nearest, onPick }) {
       <RealList lat={lat} lon={lon} />
 
       <div className="border-t border-line pt-3">
-        <p className="text-muted">
-          Tiket di KursiKu hanya untuk cabang KursiKu (fiktif). Jadwal dan tiket CGV/XXI tidak tersedia di sini.
-        </p>
         {nearest && (
           <p className="mt-2">
             Cabang KursiKu terdekat: <strong>{nearest.cinema.name}</strong> · {fmtKm(nearest.km)}

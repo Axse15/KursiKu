@@ -272,10 +272,6 @@ export default function RealCinemas({ initialCity = '' }) {
           , lewat Overpass API. Bisa kurang lengkap atau tidak terbaru. Penanda jaringan (XXI, CGV, ...) dan format (IMAX, 4DX, ...) hanya muncul
           kalau tertulis di data peta.
         </p>
-        <p>
-          Koordinatmu dikirim ke server peta hanya untuk pencarian ini dan tidak disimpan KursiKu. Bioskop di bagian ini tidak terhubung ke
-          pemesanan: tiket di KursiKu hanya untuk cabang KursiKu (fiktif).
-        </p>
       </div>
     </div>
   )
